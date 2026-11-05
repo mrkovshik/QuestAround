@@ -1,0 +1,41 @@
+version: 1
+id: demo
+title: "Горячий Ключ: тест"
+description: |
+  Пешая прогулка по центру. Около часа.
+participants: {team_size: {min: 1, max: 5}}
+timing: {time_limit: 2h}
+leaderboard: {visibility: always}
+defaults: {hint_after: [10m]}
+levels:
+  - id: start
+    title: Сбор у парка
+    task: |
+      Найдите табличку с годом основания у входа в парк.
+      Код — четыре цифры.
+    points: 10
+    answers: [{type: code, values: ["1864"]}]
+    hints:
+      - text: Табличка слева от ворот.
+      - {on_request: true, penalty: {time: 5m}, text: Ищите на каменном столбе.}
+    bonuses:
+      - {id: selfie, title: Селфи всей командой у ворот, answer: {type: photo}, points: 5}
+  - id: riddle
+    title: Две надписи
+    task: На фасаде дома культуры две надписи — найдите обе.
+    points: 15
+    require: all
+    answers:
+      - {type: code, values: ["лев"]}
+      - {type: regex, pattern: "^(19|20)\\d{2}$"}
+  - id: quiz
+    title: Знаток
+    task: Как называется скала у реки Псекупс?
+    points: 5
+    answers:
+      - {type: choice, options: ["Петушок", "Монах", "Орёл"], correct: "Петушок"}
+  - id: photo
+    title: Мост
+    task: Сфотографируйте команду на подвесном мосту.
+    points: 10
+    answers: [{type: photo}]

@@ -111,6 +111,7 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 		ID: sl.ID, Title: sl.Title, Task: sl.Task, Media: sl.Media, Points: sl.Points,
 		Open: ls.IsOpen(), OpenedAt: ls.OpenedAt, CompletedAt: timePtr(ls.CompletedAt),
 		Required: sl.Require.Needed(len(sl.Answers)), Solved: ls.SolvedCount(),
+		Answers: []answerSlotDTO{}, Hints: []hintDTO{},
 	}
 	for i, a := range sl.Answers {
 		slot := answerSlotDTO{Index: i, Type: clientAnswerType(a.Type), Solved: ls.Solved[i], Pending: ls.Pending[i] != 0}
@@ -144,7 +145,7 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 
 // openedLevels — открытые уровни команды по времени открытия.
 func openedLevels(g *core.Game, team *core.Team) []levelDTO {
-	var out []levelDTO
+	out := []levelDTO{}
 	for i := range g.Scenario.Levels {
 		sl := &g.Scenario.Levels[i]
 		if ls := team.Levels[sl.ID]; ls != nil {
@@ -162,7 +163,7 @@ type playerDTO struct {
 }
 
 func playersDTO(g *core.Game, team *core.Team) []playerDTO {
-	var out []playerDTO
+	out := []playerDTO{}
 	for _, p := range g.ActivePlayers(team.ID) {
 		out = append(out, playerDTO{ID: p.ID, Name: p.Name, Captain: p.ID == team.CaptainID})
 	}

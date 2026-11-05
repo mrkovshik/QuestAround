@@ -1,0 +1,23 @@
+{
+  "name": "questline-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/qrcode": "^1.5.6",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

@@ -15,6 +15,7 @@ import (
 	"questline/internal/httpapi"
 	"questline/internal/runner"
 	"questline/internal/store"
+	"questline/internal/webui"
 )
 
 func env(key, def string) string {
@@ -71,6 +72,7 @@ func cmdServe(args []string) error {
 		Media:      httpapi.DiskMedia{Dir: *mediaDir},
 		AdminToken: *adminToken,
 		Logger:     log,
+		Static:     webui.Handler(),
 	})
 
 	srv := &http.Server{

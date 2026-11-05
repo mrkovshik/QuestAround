@@ -12,5 +12,13 @@ test-pg:
 vet:
 	go vet ./...
 
-build:
+build: web
 	go build -o bin/questline ./cmd/questline
+
+# Фронтенд: собирается в internal/webui/dist/app и вшивается в бинарник.
+.PHONY: web web-dev
+web:
+	cd web && npm ci && npm run build
+
+web-dev:
+	cd web && npm run dev

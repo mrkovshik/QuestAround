@@ -67,6 +67,9 @@ func newTestServer(t *testing.T) *testServer {
 		AdminToken:   adminToken,
 		Logger:       log,
 		SSEKeepAlive: time.Hour,
+		Static: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("spa"))
+		}),
 	})
 	srv := httptest.NewServer(api.Handler())
 	t.Cleanup(srv.Close)
@@ -279,6 +282,9 @@ func TestFullGameOverHTTP(t *testing.T) {
 	if strings.Contains(string(r.body), "1864") || strings.Contains(string(r.body), "финиш\"") {
 		t.Fatal("в состоянии игрока утёк ответ")
 	}
+	if strings.Contains(string(r.body), "null") {
+		t.Fatalf("null в состоянии игрока (клиент ждёт массивы):\n%s", r.body)
+	}
 	if len(st.Levels) != 1 || st.Levels[0].ID != "l1" || st.IsCaptain || st.Team.Name != "Ежи" {
 		t.Fatalf("состояние: %+v", st)
 	}
@@ -324,7 +330,7 @@ func TestFullGameOverHTTP(t *testing.T) {
 		t.Fatalf("медиа: %s", img.header.Get("Content-Type"))
 	}
 	ts.must(401, "GET", queue[0].MediaURL, pl, nil)
-	ts.must(404, "GET", "/admin/v1/media/../../etc/passwd", adminToken, nil)
+	ts.must(404, "GET", "/admin/v1/media/..%2F..%2Fetc%2Fpasswd", adminToken, nil)
 	ts.must(200, "POST", admin+"/moderation/"+itoa64(queue[0].Seq), adminToken, map[string]any{"approved": true}).json(t, &queue)
 	if len(queue) != 0 {
 		t.Fatalf("очередь после решения: %+v", queue)
@@ -359,7 +365,11 @@ func TestFullGameOverHTTP(t *testing.T) {
 	}
 
 	ts.must(200, "POST", admin+"/broadcast", adminToken, map[string]string{"text": "Финиш у фонтана"})
-	ts.must(200, "GET", "/api/v1/state", pl, nil).json(t, &st)
+	r = ts.must(200, "GET", "/api/v1/state", pl, nil)
+	r.json(t, &st)
+	if strings.Contains(string(r.body), "null") {
+		t.Fatalf("null в состоянии игрока:\n%s", r.body)
+	}
 	if len(st.Messages) != 1 || st.Levels[len(st.Levels)-1].ID != "l3" {
 		t.Fatalf("состояние: %+v", st)
 	}
@@ -380,6 +390,17 @@ func TestFullGameOverHTTP(t *testing.T) {
 	if len(runs) != 1 || runs[0].Status != "finished" || runs[0].Teams != 2 {
 		t.Fatalf("список игр: %+v", runs)
 	}
+}
+
+func TestRoutingStaticVsAPI(t *testing.T) {
+	ts := newTestServer(t)
+	if r := ts.must(200, "GET", "/g/ABC/join/XYZ", "", nil); string(r.body) != "spa" {
+		t.Fatalf("SPA: %s", r.body)
+	}
+	if c := ts.must(404, "GET", "/api/v1/nope", "", nil).errCode(t); c != "not_found" {
+		t.Fatalf("код %s", c)
+	}
+	ts.must(404, "POST", "/admin/v1/nope", adminToken, nil)
 }
 
 func TestRegistrationLimits(t *testing.T) {

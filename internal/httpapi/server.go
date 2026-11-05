@@ -24,6 +24,8 @@ type Config struct {
 	Clock      runner.Clock // для расчёта времени в ответах; nil — системное
 	// SSEKeepAlive — интервал пустых комментариев в SSE (по умолчанию 25s).
 	SSEKeepAlive time.Duration
+	// Static — фронтенд (PWA); отдаётся на все пути вне API. nil — не отдаётся.
+	Static http.Handler
 }
 
 type Server struct {
@@ -99,6 +101,15 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	notFound := func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusNotFound, errorBody{Error: "not_found", Message: "нет такого метода API"})
+	}
+	mux.HandleFunc("/api/", notFound)
+	mux.HandleFunc("/admin/v1/", notFound)
+	if s.cfg.Static != nil {
+		mux.Handle("/", s.cfg.Static)
+	}
 
 	return s.recoverer(s.accessLog(mux))
 }
