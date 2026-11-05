@@ -55,6 +55,19 @@ func (s *Server) uploadScenario(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) listScenarios(w http.ResponseWriter, r *http.Request) {
+	list, err := s.cfg.Store.ListScenarioVersions(r.Context(), store.DefaultOrg)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	out := make([]scenarioVersionDTO, 0, len(list))
+	for _, sv := range list {
+		out = append(out, scenarioVersionDTO{ID: sv.ID, Slug: sv.Slug, Version: sv.Version, CreatedAt: sv.CreatedAt})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func (s *Server) getScenario(w http.ResponseWriter, r *http.Request) {
 	sv, err := s.cfg.Store.GetScenarioVersion(r.Context(), r.PathValue("id"))
 	if err != nil {

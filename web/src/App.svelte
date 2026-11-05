@@ -14,7 +14,12 @@
   })
 </script>
 
-{#if router.route.page === 'home'}
+{#if router.route.page === 'admin'}
+  <!-- Админка — отдельным чанком: игрокам её код не грузится. -->
+  {#await import('./admin/Admin.svelte') then { default: Admin }}
+    <Admin />
+  {/await}
+{:else if router.route.page === 'home'}
   <Home />
 {:else if token}
   {#key router.route.code + token}

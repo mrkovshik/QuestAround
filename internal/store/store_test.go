@@ -169,6 +169,23 @@ func TestScenarioVersionsAndRuns(t *testing.T) {
 		if v1.Version != 1 || v2.Version != 2 {
 			t.Errorf("версии %d, %d", v1.Version, v2.Version)
 		}
+		list, err := s.ListScenarioVersions(ctx, DefaultOrg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var mine []ScenarioVersion
+		for _, sv := range list {
+			if sv.Slug == slug {
+				mine = append(mine, sv)
+			}
+			if sv.Source != "" {
+				t.Error("список версий не должен содержать исходник")
+			}
+		}
+		if len(mine) != 2 || mine[0].Version != 2 {
+			t.Errorf("список версий: %+v", mine)
+		}
+
 		got, err := s.GetScenarioVersion(ctx, v1.ID)
 		if err != nil || got.Source != "a: 1" || got.Slug != slug {
 			t.Errorf("GetScenarioVersion: %+v, %v", got, err)
@@ -192,9 +209,9 @@ func TestScenarioVersionsAndRuns(t *testing.T) {
 		if err != nil || byCode.ID != r.ID {
 			t.Errorf("GetRunByCode: %+v, %v", byCode, err)
 		}
-		list, err := s.ListRuns(ctx, DefaultOrg)
-		if err != nil || len(list) == 0 {
-			t.Errorf("ListRuns: %v, %v", list, err)
+		runs, err := s.ListRuns(ctx, DefaultOrg)
+		if err != nil || len(runs) == 0 {
+			t.Errorf("ListRuns: %v, %v", runs, err)
 		}
 		if _, err := s.CreateRun(ctx, NewRun{OrgID: DefaultOrg, ScenarioVersionID: "nope"}); !errors.Is(err, ErrNotFound) {
 			t.Errorf("run без сценария: ожидали ErrNotFound, получили %v", err)

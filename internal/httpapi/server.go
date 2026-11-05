@@ -76,6 +76,7 @@ func (s *Server) Handler() http.Handler {
 	// Ведущий (Bearer-токен ведущего).
 	a := func(h http.HandlerFunc) http.Handler { return s.adminAuth(h) }
 	mux.Handle("POST /admin/v1/scenarios", a(s.uploadScenario))
+	mux.Handle("GET /admin/v1/scenarios", a(s.listScenarios))
 	mux.Handle("GET /admin/v1/scenarios/{id}", a(s.getScenario))
 	mux.Handle("POST /admin/v1/runs", a(s.createRun))
 	mux.Handle("GET /admin/v1/runs", a(s.listRuns))

@@ -1,0 +1,176 @@
+/* Админка: desktop-first, плотнее, шире. Стили видны только внутри .admin. */
+.admin {
+  --pad: 1.25rem;
+  min-height: 100dvh;
+}
+
+.admin .wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--pad);
+}
+
+.admin .topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem var(--pad);
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.admin .topbar .brand {
+  font-weight: 800;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.admin table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.93rem;
+}
+
+.admin table.grid th,
+.admin table.grid td {
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.admin table.grid th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+}
+
+.admin table.grid tbody tr.click {
+  cursor: pointer;
+}
+
+.admin table.grid tbody tr.click:hover td {
+  background: var(--accent-soft);
+}
+
+.admin table.grid td.num,
+.admin table.grid th.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin .hot {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.admin .warm {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.admin button {
+  min-height: 36px;
+  padding: 0.45rem 0.85rem;
+}
+
+.admin button.small {
+  min-height: 30px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.admin input,
+.admin textarea,
+.admin select {
+  padding: 0.5rem 0.65rem;
+}
+
+.admin select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+}
+
+.admin .tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin .tabs button {
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px 8px 0 0;
+}
+
+.admin .tabs button.active {
+  color: var(--accent);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.admin .counter {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 0.35em;
+  margin-left: 0.3em;
+  border-radius: 999px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.admin .cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.admin .notes {
+  position: fixed;
+  left: 1rem; /* справа открывается карточка команды — не закрываем её кнопки */
+  bottom: 1rem;
+  z-index: 30;
+  display: grid;
+  gap: 0.5rem;
+  width: min(380px, calc(100vw - 2rem));
+}
+
+.admin .note {
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  font-weight: 600;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
+}
+
+.admin .note.ok {
+  background: var(--ok);
+  color: #fff;
+}
+
+.admin .note.bad {
+  background: var(--bad);
+  color: #fff;
+}
+
+.admin code,
+.admin .mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}

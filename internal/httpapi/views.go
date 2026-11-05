@@ -239,12 +239,14 @@ func playerStateView(g *core.Game, title, playerID string, team *core.Team, now 
 // --- ведущий ---
 
 type currentLevelDTO struct {
-	LevelID     string    `json:"level_id"`
-	Title       string    `json:"title"`
-	OpenedAt    time.Time `json:"opened_at"`
-	Solved      int       `json:"solved"`
-	Required    int       `json:"required"`
-	HintsOpened int       `json:"hints_opened"`
+	LevelID     string     `json:"level_id"`
+	Title       string     `json:"title"`
+	OpenedAt    time.Time  `json:"opened_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	Solved      int        `json:"solved"`
+	Required    int        `json:"required"`
+	HintsOpened int        `json:"hints_opened"`
+	HintsTotal  int        `json:"hints_total"`
 }
 
 type dashTeamDTO struct {
@@ -261,7 +263,8 @@ type dashTeamDTO struct {
 	ElapsedSec   int64             `json:"elapsed_sec"`
 	LevelsDone   int               `json:"levels_done"`
 	LastActivity *time.Time        `json:"last_activity,omitempty"`
-	Current      []currentLevelDTO `json:"current"`
+	Current      []currentLevelDTO `json:"current"` // открытые сейчас
+	Levels       []currentLevelDTO `json:"levels"`  // все открытые когда-либо, по времени открытия
 }
 
 type dashboardDTO struct {
@@ -309,11 +312,15 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 			ScheduledAt: timePtr(t.ScheduledAt), StartedAt: timePtr(t.StartedAt), FinishedAt: timePtr(t.FinishedAt),
 			FinishReason: t.FinishReason, Route: t.Route, Points: t.Points,
 			PenaltySec: int64(t.PenaltyTime / time.Second), ElapsedSec: int64(g.Elapsed(t, now) / time.Second),
-			LevelsDone: t.LevelsDone, LastActivity: timePtr(t.LastActivity), Current: []currentLevelDTO{},
+			LevelsDone: t.LevelsDone, LastActivity: timePtr(t.LastActivity),
+			Current: []currentLevelDTO{}, Levels: []currentLevelDTO{},
+		}
+		if dt.Players == nil {
+			dt.Players = []playerDTO{}
 		}
 		for _, sl := range g.Scenario.Levels {
 			ls := t.Levels[sl.ID]
-			if !ls.IsOpen() {
+			if ls == nil {
 				continue
 			}
 			opened := 0
@@ -322,11 +329,17 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 					opened++
 				}
 			}
-			dt.Current = append(dt.Current, currentLevelDTO{
-				LevelID: sl.ID, Title: sl.Title, OpenedAt: ls.OpenedAt,
-				Solved: ls.SolvedCount(), Required: sl.Require.Needed(len(sl.Answers)), HintsOpened: opened,
-			})
+			lv := currentLevelDTO{
+				LevelID: sl.ID, Title: cmp.Or(sl.Title, sl.ID), OpenedAt: ls.OpenedAt, CompletedAt: timePtr(ls.CompletedAt),
+				Solved: ls.SolvedCount(), Required: sl.Require.Needed(len(sl.Answers)),
+				HintsOpened: opened, HintsTotal: len(sl.Hints),
+			}
+			dt.Levels = append(dt.Levels, lv)
+			if ls.IsOpen() {
+				dt.Current = append(dt.Current, lv)
+			}
 		}
+		slices.SortStableFunc(dt.Levels, func(a, b currentLevelDTO) int { return a.OpenedAt.Compare(b.OpenedAt) })
 		d.Teams = append(d.Teams, dt)
 	}
 	return d

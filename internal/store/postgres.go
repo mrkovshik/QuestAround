@@ -200,6 +200,25 @@ func (p *Postgres) GetScenarioVersion(ctx context.Context, id string) (ScenarioV
 	return sv, err
 }
 
+func (p *Postgres) ListScenarioVersions(ctx context.Context, orgID string) ([]ScenarioVersion, error) {
+	rows, err := p.pool.Query(ctx, `SELECT id, org_id, slug, version, created_at
+		FROM scenario_versions WHERE org_id = $1 ORDER BY created_at DESC, version DESC`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ScenarioVersion
+	for rows.Next() {
+		var sv ScenarioVersion
+		if err := rows.Scan(&sv.ID, &sv.OrgID, &sv.Slug, &sv.Version, &sv.CreatedAt); err != nil {
+			return nil, err
+		}
+		sv.CreatedAt = sv.CreatedAt.UTC()
+		out = append(out, sv)
+	}
+	return out, rows.Err()
+}
+
 const runColumns = `id, org_id, scenario_version_id, title, public_code, seed, created_at`
 
 func scanRun(row pgx.Row) (Run, error) {

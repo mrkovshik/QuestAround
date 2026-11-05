@@ -68,6 +68,8 @@ type Store interface {
 	// SaveScenarioVersion сохраняет новую версию сценария (Version = последняя + 1).
 	SaveScenarioVersion(ctx context.Context, orgID, slug, source string) (ScenarioVersion, error)
 	GetScenarioVersion(ctx context.Context, id string) (ScenarioVersion, error)
+	// ListScenarioVersions — все версии организации, новые сверху, без исходника.
+	ListScenarioVersions(ctx context.Context, orgID string) ([]ScenarioVersion, error)
 
 	CreateRun(ctx context.Context, r NewRun) (Run, error)
 	GetRun(ctx context.Context, id string) (Run, error)

@@ -89,6 +89,25 @@ func (m *Memory) GetScenarioVersion(_ context.Context, id string) (ScenarioVersi
 	return sv, nil
 }
 
+func (m *Memory) ListScenarioVersions(_ context.Context, orgID string) ([]ScenarioVersion, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []ScenarioVersion
+	for _, sv := range m.scenarios {
+		if sv.OrgID == orgID {
+			sv.Source = ""
+			out = append(out, sv)
+		}
+	}
+	slices.SortFunc(out, func(a, b ScenarioVersion) int {
+		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
+			return c
+		}
+		return b.Version - a.Version
+	})
+	return out, nil
+}
+
 func (m *Memory) CreateRun(_ context.Context, nr NewRun) (Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
