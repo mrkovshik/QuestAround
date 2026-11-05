@@ -1,0 +1,82 @@
+# Прод: Postgres + приложение + Caddy (HTTPS от Let's Encrypt) + ежедневные бэкапы.
+# Запуск из каталога deploy/:  docker compose up -d --build
+# Настройки — в deploy/.env (образец: .env.example).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: questline
+      POSTGRES_USER: questline
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U questline -d questline"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: ..
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      QUESTLINE_DATABASE_URL: postgres://questline:${POSTGRES_PASSWORD}@postgres:5432/questline?sslmode=disable
+      QUESTLINE_ADMIN_TOKEN: ${ADMIN_TOKEN:?задайте ADMIN_TOKEN в .env}
+    volumes:
+      - media:/data
+    # Наружу не публикуется — только через Caddy.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?задайте DOMAIN в .env}
+      ACME_EMAIL: ${ACME_EMAIL:?задайте ACME_EMAIL в .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Раз в сутки: дамп базы в deploy/backups, хранятся 14 последних дней.
+  # Фото лежат в томе media — их копирует backup.sh вручную или по cron.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Europe/Moscow
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          f=/backups/questline-$$(date +%Y%m%d-%H%M).sql.gz
+          if pg_dump -h postgres -U questline questline | gzip > "$$f.tmp"; then
+            mv "$$f.tmp" "$$f" && echo "бэкап: $$f"
+          else
+            rm -f "$$f.tmp"; echo "бэкап НЕ удался" >&2
+          fi
+          find /backups -name 'questline-*.sql.gz' -mtime +14 -delete
+          sleep 86400
+        done
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:
+  caddy_config:

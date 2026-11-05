@@ -1,0 +1,6 @@
+.git
+bin
+web/node_modules
+internal/webui/dist/app
+deploy/.env
+deploy/backups
