@@ -7,8 +7,9 @@
 ## Быстрый старт
 
 ```sh
-go mod tidy                 # подтянуть gopkg.in/yaml.v3 и создать go.sum
-make test
+go mod tidy                 # обновить go.sum
+make test                   # без Postgres
+docker compose up -d && make test-pg   # с Postgres
 go run ./cmd/questline validate internal/scenario/testdata/pilot.yaml
 go run ./cmd/questline routes -teams 5 internal/scenario/testdata/pilot.yaml
 ```
@@ -22,7 +23,8 @@ internal/
     testdata/pilot.yaml   пример сценария (гибрид, пилот в Горячем Ключе)
   routes/                 маршруты команд: same | rotate | random | explicit, pin, chain
   core/                   движок Run: события, команды, flow, проверка ответов, лидерборд
-  store/                  (todo) Postgres: журнал событий + справочники
+  store/                  журнал событий + сценарии и игры: Memory и Postgres (миграции встроены)
+  runner/                 актор игры: команды → журнал → подписчики, таймеры по NextDeadline
   transport/http/         (todo) API игрока/ведущего, SSE, PWA
   transport/telegram/     (todo) бот — второй транспорт
 ```
@@ -79,8 +81,25 @@ internal/
 - Заморозка лидерборда считается от конца лимита последней стартовавшей команды.
 - В режиме `time` бонусы не уменьшают время (бонусы — только баллы).
 
+**store**
+- `EventStore`: `Append` атомарно и только продолжением журнала (иначе `ErrConflict`), `Load`.
+- Версии сценариев (неизменяемые, номер растёт), игры с коротким `PublicCode` и `Seed`.
+- Postgres: pgx, миграции из `migrations/*.sql` под advisory lock; Memory хранит события
+  в JSON, как Postgres. Общий набор контрактных тестов гоняется на обеих реализациях.
+
+**runner**
+- Одна горутина на игру владеет `core.Game`; `Do(cmd)` отвечает только после записи в журнал.
+- Сбой записи → состояние перечитывается из журнала, клиент получает ошибку.
+- Таймер ставится на `NextDeadline()` — старты по расписанию, автоподсказки и лимит
+  срабатывают сами, в том числе после рестарта.
+- `Subscribe(teamID)` — канал «состояние изменилось» (последний seq, схлопывание) для SSE;
+  пустой teamID — все изменения (ведущий).
+- `Read(fn)` — чтение состояния внутри актора, без блокировок.
+- Время округляется до микросекунд — состояние в памяти и после рестарта из Postgres совпадает.
+- `Manager` поднимает акторы по требованию из хранилища.
+
 ## Дальше
 
-1. Актор Run: горутина + канал команд + таймер на `NextDeadline`, подписки для SSE.
-2. `store`: схема Postgres, миграции, append-only журнал, загрузка/replay при старте.
-3. `transport/http` + PWA.
+1. `transport/http`: API игрока и ведущего, SSE, загрузка фото.
+2. Регистрация команд и игроков (токены, инвайты, капитан, чек-ин).
+3. PWA игрока и админка ведущего.
