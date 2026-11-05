@@ -1,0 +1,111 @@
+# Пример сценария: гибридная пешая игра для пилота в Горячем Ключе.
+# Задания и координаты — заглушки.
+version: 1
+id: gk-pilot-01
+title: "Горячий Ключ: пилот"
+description: |
+  Пешая игра по центру, ~2.5 часа.
+
+participants:
+  mode: team
+  team_size: { min: 2, max: 5 }
+  hint_requests: captain
+
+timing:
+  mode: async
+  time_limit: 3h
+
+start:
+  mode: staggered
+  interval: 5m
+  order: random
+
+flow:
+  mode: linear
+  routes: rotate
+
+scoring:
+  mode: mixed
+
+leaderboard:
+  visibility: host
+  freeze_before_end: 30m
+
+defaults:
+  hint_after: [15m, 30m]
+  rate_limit: { wrong_answers: 5, per: 1m }
+  answer_normalize: [trim, lower, yo_to_e]
+
+levels:
+  - id: start
+    pin: first
+    title: "Сбор"
+    task: |
+      Найдите табличку с годом основания у входа в парк.
+      Код — четыре цифры.
+    media: [img/start.jpg]
+    points: 10
+    answers:
+      - type: code
+        values: ["1864"]
+    hints:
+      - text: "Табличка слева от ворот."            # after возьмётся из defaults: 15m
+      - on_request: true
+        penalty: { time: 10m }
+        text: "Ищите на каменном столбе."
+
+  - id: bridge
+    title: "Мост"
+    task: "Встаньте в центре подвесного моста и отметьтесь."
+    points: 10
+    answers:
+      - type: geo
+        point: [44.6338, 39.1352]
+        radius_m: 25
+        max_accuracy_m: 50
+    bonuses:
+      - id: bridge-photo
+        title: "Командное фото на мосту"
+        answer: { type: photo }
+        points: 5
+
+  - id: riddle-1
+    chain: riddle
+    title: "Загадка, часть 1"
+    task: "Сосчитайте ступени лестницы к смотровой."
+    points: 10
+    answers:
+      - type: code
+        values: ["47"]
+
+  - id: riddle-2
+    chain: riddle
+    title: "Загадка, часть 2"
+    task: "С верхней ступени найдите надпись на ближайшем здании."
+    require: all
+    answers:
+      - type: code
+        values: ["Лев", "lev"]
+      - type: regex
+        pattern: "^(19|20)\\d{2}$"
+    points: 15
+    hints:
+      - after: 20m
+        text: "Надпись на фронтоне."
+
+  - id: quiz
+    title: "Знаток"
+    task: "Как называется скала у реки Псекупс?"
+    points: 5
+    answers:
+      - type: choice
+        options: ["Петушок", "Монах", "Орёл"]
+        correct: "Петушок"
+
+  - id: final
+    pin: last
+    title: "Финиш"
+    task: "Вернитесь на старт и назовите ведущему кодовое слово."
+    answers:
+      - type: code
+        values: ["ФИНИШ"]
