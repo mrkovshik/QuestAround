@@ -13,6 +13,13 @@ const (
 	EvRunStarted               EventType = "run_started"
 	EvRunFinished              EventType = "run_finished"
 	EvTeamRegistered           EventType = "team_registered"
+	EvPlayerJoined             EventType = "player_joined"
+	EvPlayerRemoved            EventType = "player_removed"
+	EvCaptainChanged           EventType = "captain_changed"
+	EvInviteRotated            EventType = "invite_rotated"
+	EvTeamRenamed              EventType = "team_renamed"
+	EvTeamWithdrawn            EventType = "team_withdrawn"
+	EvRegistrationSet          EventType = "registration_set"
 	EvTeamStartScheduled       EventType = "team_start_scheduled"
 	EvRouteAssigned            EventType = "route_assigned"
 	EvTeamStarted              EventType = "team_started"
@@ -53,7 +60,39 @@ type RunFinished struct {
 }
 
 type TeamRegistered struct {
+	Name       string `json:"name"`
+	InviteCode string `json:"invite_code,omitempty"`
+	Contact    string `json:"contact,omitempty"`
+}
+
+// PlayerJoined — игрок вступил в команду (PlayerID и TeamID — в событии).
+type PlayerJoined struct {
+	Name      string `json:"name"`
+	TokenHash string `json:"token_hash"`
+	Captain   bool   `json:"captain,omitempty"`
+}
+
+type PlayerRemoved struct {
+	PlayerID string `json:"player_id"`
+}
+
+type CaptainChanged struct {
+	PlayerID string `json:"player_id"`
+}
+
+type InviteRotated struct {
+	InviteCode string `json:"invite_code"`
+}
+
+type TeamRenamed struct {
 	Name string `json:"name"`
+}
+
+type TeamWithdrawn struct{}
+
+type RegistrationSet struct {
+	Open     bool `json:"open"`
+	MaxTeams int  `json:"max_teams"`
 }
 
 type TeamStartScheduled struct {
@@ -139,6 +178,13 @@ type Broadcast struct {
 func (RunStarted) Type() EventType               { return EvRunStarted }
 func (RunFinished) Type() EventType              { return EvRunFinished }
 func (TeamRegistered) Type() EventType           { return EvTeamRegistered }
+func (PlayerJoined) Type() EventType             { return EvPlayerJoined }
+func (PlayerRemoved) Type() EventType            { return EvPlayerRemoved }
+func (CaptainChanged) Type() EventType           { return EvCaptainChanged }
+func (InviteRotated) Type() EventType            { return EvInviteRotated }
+func (TeamRenamed) Type() EventType              { return EvTeamRenamed }
+func (TeamWithdrawn) Type() EventType            { return EvTeamWithdrawn }
+func (RegistrationSet) Type() EventType          { return EvRegistrationSet }
 func (TeamStartScheduled) Type() EventType       { return EvTeamStartScheduled }
 func (RouteAssigned) Type() EventType            { return EvRouteAssigned }
 func (TeamStarted) Type() EventType              { return EvTeamStarted }
@@ -158,6 +204,13 @@ var payloadFactory = map[EventType]func() Payload{
 	EvRunStarted:               func() Payload { return &RunStarted{} },
 	EvRunFinished:              func() Payload { return &RunFinished{} },
 	EvTeamRegistered:           func() Payload { return &TeamRegistered{} },
+	EvPlayerJoined:             func() Payload { return &PlayerJoined{} },
+	EvPlayerRemoved:            func() Payload { return &PlayerRemoved{} },
+	EvCaptainChanged:           func() Payload { return &CaptainChanged{} },
+	EvInviteRotated:            func() Payload { return &InviteRotated{} },
+	EvTeamRenamed:              func() Payload { return &TeamRenamed{} },
+	EvTeamWithdrawn:            func() Payload { return &TeamWithdrawn{} },
+	EvRegistrationSet:          func() Payload { return &RegistrationSet{} },
 	EvTeamStartScheduled:       func() Payload { return &TeamStartScheduled{} },
 	EvRouteAssigned:            func() Payload { return &RouteAssigned{} },
 	EvTeamStarted:              func() Payload { return &TeamStarted{} },
@@ -197,6 +250,20 @@ func deref(p Payload) Payload {
 	case *RunFinished:
 		return *v
 	case *TeamRegistered:
+		return *v
+	case *PlayerJoined:
+		return *v
+	case *PlayerRemoved:
+		return *v
+	case *CaptainChanged:
+		return *v
+	case *InviteRotated:
+		return *v
+	case *TeamRenamed:
+		return *v
+	case *TeamWithdrawn:
+		return *v
+	case *RegistrationSet:
 		return *v
 	case *TeamStartScheduled:
 		return *v

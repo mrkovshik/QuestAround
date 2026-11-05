@@ -48,6 +48,20 @@ func (g *Game) Handle(now time.Time, cmd Command) (Outcome, error) {
 	switch c := cmd.(type) {
 	case RegisterTeam:
 		err = g.registerTeam(t, c)
+	case JoinTeam:
+		err = g.joinTeam(t, c)
+	case RenameTeam:
+		err = g.renameTeam(t, c)
+	case RemovePlayer:
+		err = g.removePlayer(t, c)
+	case TransferCaptain:
+		err = g.transferCaptain(t, c)
+	case RotateInvite:
+		err = g.rotateInvite(t, c)
+	case WithdrawTeam:
+		err = g.withdrawTeam(t, c)
+	case SetRegistration:
+		err = g.setRegistration(t, c)
 	case StartRun:
 		err = g.startRun(t)
 	case StartTeam:
@@ -83,25 +97,11 @@ func (g *Game) Handle(now time.Time, cmd Command) (Outcome, error) {
 
 // --- регистрация и старт ---
 
-func (g *Game) registerTeam(t *tx, c RegisterTeam) error {
-	if g.Status != RunStatusPending {
-		return ErrRunStarted
-	}
-	if c.TeamID == "" || strings.TrimSpace(c.Name) == "" {
-		return ErrBadCommand
-	}
-	if _, ok := g.Teams[c.TeamID]; ok {
-		return ErrTeamExists
-	}
-	t.emit(c.TeamID, "", "", TeamRegistered{Name: c.Name})
-	return nil
-}
-
 func (g *Game) startRun(t *tx) error {
 	if g.Status != RunStatusPending {
 		return ErrRunStarted
 	}
-	if len(g.TeamOrder) == 0 {
+	if len(g.ActiveTeams()) == 0 {
 		return ErrNoTeams
 	}
 	sc := g.Scenario
@@ -147,7 +147,10 @@ func (g *Game) startRun(t *tx) error {
 
 // slotOrder — порядок команд на старте.
 func (g *Game) slotOrder() []string {
-	order := append([]string(nil), g.TeamOrder...)
+	var order []string
+	for _, t := range g.ActiveTeams() {
+		order = append(order, t.ID)
+	}
 	if g.Scenario.Start.Order == scenario.OrderRandom {
 		r := rand.New(rand.NewPCG(g.Seed, 0x5107))
 		r.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
@@ -574,8 +577,8 @@ func (g *Game) finishTeam(t *tx, team *Team, reason string, autoFinishRun bool) 
 	if !autoFinishRun || g.Status != RunStatusRunning {
 		return
 	}
-	for _, id := range g.TeamOrder {
-		if g.Teams[id].Status != TeamStatusFinished {
+	for _, other := range g.ActiveTeams() {
+		if other.Status != TeamStatusFinished {
 			return
 		}
 	}
@@ -607,7 +610,8 @@ func (g *Game) requestHint(t *tx, c RequestHint) error {
 	if ls.Hints[c.HintIdx] {
 		return ErrHintAlreadyOpen
 	}
-	if g.Scenario.Participants.HintRequests == scenario.HintRequestsCaptain && !c.IsCaptain {
+	isCaptain := c.IsCaptain || (c.PlayerID != "" && team.CaptainID == c.PlayerID)
+	if g.Scenario.Participants.HintRequests == scenario.HintRequestsCaptain && !isCaptain {
 		return ErrNotAllowed
 	}
 	p := HintOpened{LevelID: c.LevelID, HintIdx: c.HintIdx, Trigger: "request"}
@@ -709,8 +713,8 @@ func (g *Game) finishRun(t *tx) error {
 	if g.Status != RunStatusRunning {
 		return ErrRunNotRunning
 	}
-	for _, id := range g.TeamOrder {
-		if team := g.Teams[id]; team.Status != TeamStatusFinished {
+	for _, team := range g.ActiveTeams() {
+		if team.Status != TeamStatusFinished {
 			g.finishTeam(t, team, "admin", false)
 		}
 	}

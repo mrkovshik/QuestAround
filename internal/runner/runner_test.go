@@ -177,7 +177,7 @@ func (e *env) eventually(what string, cond func() bool) {
 
 func (e *env) setup(teams ...string) {
 	for _, id := range teams {
-		e.do(core.RegisterTeam{TeamID: id, Name: id})
+		e.do(core.RegisterTeam{TeamID: id, Name: id, ByHost: true})
 	}
 	e.do(core.StartRun{})
 }

@@ -1,5 +1,6 @@
 // Команда questline — утилиты для авторов сценариев.
 //
+//	questline serve                       HTTP-сервер (настройки — флаги или QUESTLINE_*)
 //	questline validate <scenario.yaml>
 //	questline routes [-teams N] [-seed S] <scenario.yaml>
 package main
@@ -22,6 +23,8 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "serve":
+		err = cmdServe(os.Args[2:])
 	case "validate":
 		err = cmdValidate(os.Args[2:])
 	case "routes":
@@ -46,6 +49,7 @@ func main() {
 
 func usage() {
 	fmt.Fprint(os.Stderr, `Использование:
+  questline serve [-addr :8080] [-db DSN] [-media DIR] [-admin-token T]   HTTP-сервер
   questline validate <scenario.yaml>                  проверить сценарий
   questline routes [-teams N] [-seed S] <scenario.yaml>  показать маршруты команд
 `)

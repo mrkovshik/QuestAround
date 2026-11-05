@@ -49,8 +49,7 @@ func (g *Game) Elapsed(team *Team, now time.Time) time.Duration {
 // Нестартовавшие команды — внизу. Равные по ключу делят место (1, 1, 3).
 func (g *Game) Standings(now time.Time) []Standing {
 	out := make([]Standing, 0, len(g.TeamOrder))
-	for _, id := range g.TeamOrder {
-		t := g.Teams[id]
+	for _, t := range g.ActiveTeams() {
 		out = append(out, Standing{
 			TeamID:   t.ID,
 			Name:     t.Name,

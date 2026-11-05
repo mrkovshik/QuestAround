@@ -9,12 +9,6 @@ import (
 // отклоняет его с ошибкой и ничего не меняет, либо порождает события.
 type Command interface{ isCommand() }
 
-// RegisterTeam — добавить команду (до старта игры).
-type RegisterTeam struct {
-	TeamID string
-	Name   string
-}
-
 // StartRun — старт игры: маршруты, расписание стартов, старт команд.
 type StartRun struct{}
 
@@ -50,7 +44,7 @@ type SubmitAnswer struct {
 type RequestHint struct {
 	TeamID    string
 	PlayerID  string
-	IsCaptain bool
+	IsCaptain bool // иначе капитанство проверяется по PlayerID
 	LevelID   string
 	HintIdx   int
 }

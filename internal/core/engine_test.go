@@ -420,7 +420,7 @@ func TestOverridesAndErrors(t *testing.T) {
 	h.fail(Tick{}, nil)
 	h.do(StartRun{})
 	h.fail(StartRun{}, ErrRunStarted)
-	h.fail(RegisterTeam{TeamID: "z", Name: "z"}, ErrRunStarted)
+	h.fail(RegisterTeam{TeamID: "z", Name: "z", ByHost: true}, ErrRunStarted)
 	h.fail(SubmitAnswer{TeamID: "nope", Kind: KindCode, Value: "1"}, ErrUnknownTeam)
 
 	h.fail(Override{TeamID: "a", Action: OverrideAdjustPoints, Points: 5}, ErrReasonRequired)

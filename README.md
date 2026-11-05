@@ -10,6 +10,11 @@
 go mod tidy                 # обновить go.sum
 make test                   # без Postgres
 docker compose up -d && make test-pg   # с Postgres
+
+# сервер (без QUESTLINE_DATABASE_URL — всё в памяти)
+QUESTLINE_ADMIN_TOKEN=$(openssl rand -hex 16) \
+QUESTLINE_DATABASE_URL=postgres://postgres:postgres@localhost:5432/questline \
+go run ./cmd/questline serve
 go run ./cmd/questline validate internal/scenario/testdata/pilot.yaml
 go run ./cmd/questline routes -teams 5 internal/scenario/testdata/pilot.yaml
 ```
@@ -17,7 +22,7 @@ go run ./cmd/questline routes -teams 5 internal/scenario/testdata/pilot.yaml
 ## Структура
 
 ```
-cmd/questline/            CLI для авторов: validate, routes
+cmd/questline/            CLI: serve (HTTP-сервер), validate, routes
 internal/
   scenario/               YAML-сценарий: типы, дефолты, валидация с номерами строк
     testdata/pilot.yaml   пример сценария (гибрид, пилот в Горячем Ключе)
@@ -25,8 +30,8 @@ internal/
   core/                   движок Run: события, команды, flow, проверка ответов, лидерборд
   store/                  журнал событий + сценарии и игры: Memory и Postgres (миграции встроены)
   runner/                 актор игры: команды → журнал → подписчики, таймеры по NextDeadline
-  transport/http/         (todo) API игрока/ведущего, SSE, PWA
-  transport/telegram/     (todo) бот — второй транспорт
+  httpapi/                HTTP API игрока и ведущего, SSE, загрузка фото
+  telegram/               (todo) бот — второй транспорт
 ```
 
 ## Что уже есть
@@ -98,8 +103,49 @@ internal/
 - Время округляется до микросекунд — состояние в памяти и после рестарта из Postgres совпадает.
 - `Manager` поднимает акторы по требованию из хранилища.
 
+**Регистрация (в core)**
+- Капитан создаёт команду по публичному коду игры и получает инвайт; игроки вступают по инвайту
+  (до старта и во время игры), первый вступивший в команду ведущего становится капитаном.
+- Капитан: переименовать, удалить игрока, передать капитанство, перевыпустить инвайт, снять команду (до старта).
+- Ведущий: открыть/закрыть регистрацию, лимит команд (ведущему лимит не мешает), команды вручную.
+- Снявшиеся команды не стартуют и не попадают в таблицу.
+
+**httpapi**
+- Токен игрока `<runID>.<playerID>.<secret>`, в журнале только `sha256(secret)`;
+  удалённый игрок теряет доступ сразу. Ведущий — статический `QUESTLINE_ADMIN_TOKEN`.
+- Ошибки: `{"error": "<код>", "message": "<по-русски>"}`; невалидный сценарий → 422 со строками.
+- Игроку никогда не отдаются коды, регэкспы и координаты.
+- SSE (`/api/v1/stream`, `/admin/v1/runs/{id}/stream`): `event: state_changed`, `data: <seq>`;
+  токен можно передать `?token=` (EventSource не умеет заголовки).
+- Фото: multipart `photo` + `level_id` / `bonus_id` / `answer_idx`; JPEG, PNG, WebP, GIF до 15 МБ;
+  хранятся на диске (`QUESTLINE_MEDIA_DIR`), отдаются только ведущему.
+
+### API игрока
+
+| | |
+|---|---|
+| `GET /api/v1/games/{code}` | инфо об игре, открыта ли регистрация |
+| `POST /api/v1/games/{code}/teams` | `{team_name, captain_name, contact}` → токен капитана + инвайт |
+| `POST /api/v1/games/{code}/join` | `{invite_code, name}` → токен |
+| `GET /api/v1/state` | всё для экрана игрока |
+| `POST /api/v1/answers` | `{kind: code\|geo\|text, value, lat, lng, accuracy, level_id, bonus_id, answer_idx, client_event_id}` |
+| `POST /api/v1/photos` | multipart |
+| `POST /api/v1/levels/{id}/hints/{idx}` | подсказка по запросу |
+| `GET /api/v1/leaderboard` | 403 `leaderboard_hidden`, если скрыта |
+| `GET /api/v1/stream` | SSE |
+| `GET/PATCH /api/v1/team`, `DELETE /api/v1/team/players/{id}`, `POST /api/v1/team/{invite/rotate,captain,withdraw}` | команда |
+
+### API ведущего (`/admin/v1`)
+
+`POST /scenarios` (тело — YAML), `GET /scenarios/{id}`, `POST/GET /runs`, `GET /runs/{id}`,
+`PUT /runs/{id}/registration`, `POST /runs/{id}/teams`, `PATCH /runs/{id}/teams/{tid}`,
+`POST /runs/{id}/teams/{tid}/{start,withdraw,override,answers}`, `POST /runs/{id}/{start,finish,broadcast}`,
+`GET /runs/{id}/{dashboard,stream,moderation,events}`, `POST /runs/{id}/moderation/{seq}`,
+`PUT /runs/{id}/leaderboard`, `GET /media/{key}`.
+
 ## Дальше
 
-1. `transport/http`: API игрока и ведущего, SSE, загрузка фото.
-2. Регистрация команд и игроков (токены, инвайты, капитан, чек-ин).
-3. PWA игрока и админка ведущего.
+1. PWA игрока: регистрация по ссылке, экран задания, ввод кода, гео, фото (со сжатием), офлайн-очередь.
+2. Админка ведущего (desktop-first): игры, регистрация, дашборд, модерация, ручные действия.
+3. Чек-ин игроков, восстановление доступа, роль модератора.
+4. Деплой: Dockerfile, Caddy, VPS.

@@ -54,6 +54,7 @@ const (
 	TeamStatusScheduled  TeamStatus = "scheduled"
 	TeamStatusPlaying    TeamStatus = "playing"
 	TeamStatusFinished   TeamStatus = "finished"
+	TeamStatusWithdrawn  TeamStatus = "withdrawn" // снялась до старта
 )
 
 // Game — состояние одного Run: свёртка журнала событий.
@@ -67,8 +68,10 @@ type Game struct {
 	StartedAt  time.Time
 	FinishedAt time.Time
 
-	Teams     map[string]*Team
-	TeamOrder []string // порядок регистрации
+	Teams        map[string]*Team
+	TeamOrder    []string // порядок регистрации
+	Players      map[string]*Player
+	Registration Registration
 
 	Leaderboard LeaderboardState
 	Messages    []Message
@@ -77,6 +80,23 @@ type Game struct {
 	levelIdx map[string]int
 	seen     map[string]map[string]AnswerResult // team → client_event_id → результат
 	pending  map[int64]*PendingItem             // модерация: Seq → заявка
+	invites  map[string]string                  // инвайт-код → команда
+}
+
+// Registration — настройки регистрации проведения (не сценария).
+type Registration struct {
+	Closed   bool // по умолчанию открыта
+	MaxTeams int  // 0 — без ограничения
+}
+
+// Player — игрок. Токен хранится только в виде хэша.
+type Player struct {
+	ID        string
+	TeamID    string
+	Name      string
+	TokenHash string
+	JoinedAt  time.Time
+	Removed   bool
 }
 
 type LeaderboardState struct {
@@ -92,9 +112,13 @@ type Message struct {
 }
 
 type Team struct {
-	ID     string
-	Name   string
-	Status TeamStatus
+	ID         string
+	Name       string
+	Status     TeamStatus
+	CaptainID  string
+	InviteCode string
+	Contact    string   // контакт капитана для ведущего
+	PlayerIDs  []string // в порядке вступления, включая удалённых
 
 	Slot         int
 	ScheduledAt  time.Time
@@ -164,6 +188,8 @@ func NewGame(runID string, sc *scenario.Scenario, seed uint64) *Game {
 		Seed:     seed,
 		Status:   RunStatusPending,
 		Teams:    map[string]*Team{},
+		Players:  map[string]*Player{},
+		invites:  map[string]string{},
 		levelIdx: map[string]int{},
 		seen:     map[string]map[string]AnswerResult{},
 		pending:  map[int64]*PendingItem{},
@@ -213,12 +239,48 @@ func (g *Game) Apply(e Event) {
 		g.Teams[e.TeamID] = &Team{
 			ID:           e.TeamID,
 			Name:         p.Name,
+			InviteCode:   p.InviteCode,
+			Contact:      p.Contact,
 			Status:       TeamStatusRegistered,
 			Levels:       map[string]*LevelState{},
 			Bonuses:      map[string]bool{},
 			PendingBonus: map[string]int64{},
 		}
 		g.TeamOrder = append(g.TeamOrder, e.TeamID)
+		if p.InviteCode != "" {
+			g.invites[p.InviteCode] = e.TeamID
+		}
+
+	case PlayerJoined:
+		g.Players[e.PlayerID] = &Player{
+			ID: e.PlayerID, TeamID: e.TeamID, Name: p.Name,
+			TokenHash: p.TokenHash, JoinedAt: e.At,
+		}
+		t.PlayerIDs = append(t.PlayerIDs, e.PlayerID)
+		if p.Captain {
+			t.CaptainID = e.PlayerID
+		}
+
+	case PlayerRemoved:
+		g.Players[p.PlayerID].Removed = true
+
+	case CaptainChanged:
+		t.CaptainID = p.PlayerID
+
+	case InviteRotated:
+		delete(g.invites, t.InviteCode)
+		t.InviteCode = p.InviteCode
+		g.invites[p.InviteCode] = t.ID
+
+	case TeamRenamed:
+		t.Name = p.Name
+
+	case TeamWithdrawn:
+		t.Status = TeamStatusWithdrawn
+		delete(g.invites, t.InviteCode)
+
+	case RegistrationSet:
+		g.Registration = Registration{Closed: !p.Open, MaxTeams: p.MaxTeams}
 
 	case TeamStartScheduled:
 		t.Status = TeamStatusScheduled

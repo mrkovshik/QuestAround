@@ -29,7 +29,7 @@ func newHarness(t *testing.T, yaml string, teams ...string) *harness {
 	}
 	h := &harness{t: t, g: NewGame("run-1", sc, 7), now: t0}
 	for _, id := range teams {
-		h.do(RegisterTeam{TeamID: id, Name: "Команда " + id})
+		h.do(RegisterTeam{TeamID: id, Name: "Команда " + id, ByHost: true})
 	}
 	t.Cleanup(h.checkReplay)
 	return h
@@ -120,7 +120,7 @@ func (h *harness) checkReplay() {
 // snapshot — наблюдаемое состояние для сравнения.
 func snapshot(g *Game, now time.Time) any {
 	return map[string]any{
-		"status": g.Status, "teams": g.Teams, "lb": g.Leaderboard,
+		"status": g.Status, "teams": g.Teams, "players": g.Players, "reg": g.Registration, "lb": g.Leaderboard,
 		"standings": g.Standings(now), "pending": g.PendingModeration(), "seq": g.Seq(),
 	}
 }
