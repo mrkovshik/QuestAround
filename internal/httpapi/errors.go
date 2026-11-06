@@ -89,6 +89,15 @@ func (s *Server) writeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeJSON(w, ae.status, errorBody{Error: ae.code, Message: ae.msg})
 		return
 	}
+	var inc *scenario.Incompatible
+	if errors.As(err, &inc) {
+		body := errorBody{Error: "scenario_incompatible", Message: "игра уже идёт — в новой версии изменилась структура сценария"}
+		for _, p := range inc.Problems {
+			body.Details = append(body.Details, scenarioIssue{Message: p})
+		}
+		writeJSON(w, http.StatusConflict, body)
+		return
+	}
 	var se scenario.Errors
 	if errors.As(err, &se) {
 		body := errorBody{Error: "invalid_scenario", Message: "в сценарии есть ошибки"}

@@ -35,6 +35,7 @@
     leaderboard_visibility_set: 'Видимость таблицы',
     leaderboard_frozen: 'Таблица заморожена',
     broadcast: 'Сообщение всем',
+    scenario_changed: 'Замена сценария',
   }
   const ACTION: Record<string, string> = {
     complete_level: 'засчитан уровень',
@@ -98,6 +99,8 @@
         return p.name
       case 'broadcast':
         return p.text
+      case 'scenario_changed':
+        return `${p.slug}, версия ${p.version}`
       case 'leaderboard_visibility_set':
         return p.visible === null ? 'по сценарию' : p.visible ? 'показана' : 'скрыта'
       default:

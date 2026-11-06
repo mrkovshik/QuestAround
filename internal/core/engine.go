@@ -83,6 +83,8 @@ func (g *Game) Handle(now time.Time, cmd Command) (Outcome, error) {
 		} else {
 			t.emit("", "", "", Broadcast{Text: c.Text})
 		}
+	case NoteScenarioChanged:
+		t.emit("", "host", "", ScenarioChanged{VersionID: c.VersionID, Slug: c.Slug, Version: c.Version})
 	case FinishRun:
 		err = g.finishRun(t)
 	case Tick:

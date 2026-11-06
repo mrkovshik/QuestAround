@@ -29,7 +29,10 @@ export class RunLive {
     this.api.run(this.runId).then((r) => (this.run = r)).catch((e) => (this.error = (e as Error).message))
     this.refresh()
     this.es = new EventSource(`/admin/v1/runs/${this.runId}/stream?token=${encodeURIComponent(this.api.token)}`)
-    this.es.onopen = () => (this.streaming = true)
+    this.es.onopen = () => {
+      this.streaming = true
+      this.schedule()
+    }
     this.es.onerror = () => (this.streaming = false)
     this.es.addEventListener('state_changed', (e) => {
       if (Number((e as MessageEvent).data) !== this.dash?.seq) this.schedule()

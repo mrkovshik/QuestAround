@@ -482,9 +482,61 @@ func TestChangeScenarioBeforeStart(t *testing.T) {
 		t.Fatalf("задание: %+v", st.Levels)
 	}
 
-	// После старта менять нельзя.
-	if c := ts.must(409, "PUT", admin+"/scenario", adminToken, map[string]string{"scenario_version_id": v1.ID}).errCode(t); c != "run_started" {
-		t.Fatalf("код %s", c)
+	// После старта структуру менять нельзя: лишний уровень — отказ с перечнем отличий.
+	var v3 scenarioVersionDTO
+	extra := strings.Replace(fixed, "  - id: l3\n", "  - id: lx\n    task: новый\n    answers: [{type: photo}]\n  - id: l3\n", 1)
+	ts.must(201, "POST", "/admin/v1/scenarios", adminToken, extra).json(t, &v3)
+	r := ts.must(409, "PUT", admin+"/scenario", adminToken, map[string]string{"scenario_version_id": v3.ID})
+	var body errorBody
+	r.json(t, &body)
+	if body.Error != "scenario_incompatible" || len(body.Details) == 0 {
+		t.Fatalf("ответ: %+v", body)
 	}
 	ts.must(200, "GET", "/api/v1/state", cred.Token, nil) // игра после отказа продолжает работать
+
+	// …а содержимое — можно: правим текст прямо во время игры.
+	ts.must(200, "PUT", admin+"/scenario", adminToken, map[string]string{"scenario_version_id": v1.ID})
+	ts.must(200, "GET", "/api/v1/state", cred.Token, nil).json(t, &st)
+	if st.Levels[0].Task != "Найдите год" {
+		t.Fatalf("текст после правки во время игры: %q", st.Levels[0].Task)
+	}
+}
+
+func TestFixGeoPointDuringGame(t *testing.T) {
+	ts := newTestServer(t)
+	geoYAML := `
+version: 1
+id: geo
+title: geo
+levels:
+  - id: g
+    task: Отметьтесь
+    answers: [{type: geo, point: [44.6338, 39.1352], radius_m: 100}]
+  - id: f
+    task: Финиш
+    answers: [{type: code, values: ["ok"]}]
+`
+	var v1, v2 scenarioVersionDTO
+	ts.must(201, "POST", "/admin/v1/scenarios", adminToken, geoYAML).json(t, &v1)
+	var run runDTO
+	ts.must(201, "POST", "/admin/v1/runs", adminToken, map[string]string{"scenario_version_id": v1.ID}).json(t, &run)
+	var cred credentialsDTO
+	ts.must(201, "POST", "/api/v1/games/"+run.PublicCode+"/teams", "", map[string]string{"team_name": "T", "captain_name": "K"}).json(t, &cred)
+	ts.must(200, "POST", "/admin/v1/runs/"+run.ID+"/start", adminToken, nil)
+
+	here := map[string]any{"kind": "geo", "lat": 44.6200, "lng": 39.1100, "accuracy": 15}
+	var ans answerResultDTO
+	ts.must(200, "POST", "/api/v1/answers", cred.Token, here).json(t, &ans)
+	if ans.Result != "wrong" {
+		t.Fatalf("до правки: %+v", ans)
+	}
+
+	// Ведущий поправил координаты и заменил сценарий прямо в игре.
+	ts.must(201, "POST", "/admin/v1/scenarios", adminToken, strings.Replace(geoYAML, "[44.6338, 39.1352]", "[44.6201, 39.1101]", 1)).json(t, &v2)
+	ts.must(200, "PUT", "/admin/v1/runs/"+run.ID+"/scenario", adminToken, map[string]string{"scenario_version_id": v2.ID})
+
+	ts.must(200, "POST", "/api/v1/answers", cred.Token, here).json(t, &ans)
+	if ans.Result != "correct" {
+		t.Fatalf("после правки: %+v", ans)
+	}
 }

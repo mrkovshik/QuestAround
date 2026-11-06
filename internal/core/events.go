@@ -34,6 +34,7 @@ const (
 	EvLeaderboardVisibilitySet EventType = "leaderboard_visibility_set"
 	EvLeaderboardFrozen        EventType = "leaderboard_frozen"
 	EvBroadcast                EventType = "broadcast"
+	EvScenarioChanged          EventType = "scenario_changed"
 )
 
 // Event — запись журнала. Состояние игры — свёртка событий через Apply.
@@ -178,6 +179,13 @@ type Broadcast struct {
 	Text string `json:"text"`
 }
 
+// ScenarioChanged — ведущий заменил версию сценария (до старта или совместимую во время игры).
+type ScenarioChanged struct {
+	VersionID string `json:"version_id"`
+	Slug      string `json:"slug"`
+	Version   int    `json:"version"`
+}
+
 func (RunStarted) Type() EventType               { return EvRunStarted }
 func (RunFinished) Type() EventType              { return EvRunFinished }
 func (TeamRegistered) Type() EventType           { return EvTeamRegistered }
@@ -202,6 +210,7 @@ func (AdminOverride) Type() EventType            { return EvAdminOverride }
 func (LeaderboardVisibilitySet) Type() EventType { return EvLeaderboardVisibilitySet }
 func (LeaderboardFrozen) Type() EventType        { return EvLeaderboardFrozen }
 func (Broadcast) Type() EventType                { return EvBroadcast }
+func (ScenarioChanged) Type() EventType          { return EvScenarioChanged }
 
 var payloadFactory = map[EventType]func() Payload{
 	EvRunStarted:               func() Payload { return &RunStarted{} },
@@ -228,6 +237,7 @@ var payloadFactory = map[EventType]func() Payload{
 	EvLeaderboardVisibilitySet: func() Payload { return &LeaderboardVisibilitySet{} },
 	EvLeaderboardFrozen:        func() Payload { return &LeaderboardFrozen{} },
 	EvBroadcast:                func() Payload { return &Broadcast{} },
+	EvScenarioChanged:          func() Payload { return &ScenarioChanged{} },
 }
 
 // DecodePayload восстанавливает payload по типу события (для хранилища).
@@ -295,6 +305,8 @@ func deref(p Payload) Payload {
 	case *LeaderboardFrozen:
 		return *v
 	case *Broadcast:
+		return *v
+	case *ScenarioChanged:
 		return *v
 	}
 	return p

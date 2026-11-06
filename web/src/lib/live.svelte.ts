@@ -121,7 +121,12 @@ export class Live {
 
   private connect() {
     this.es = new EventSource(`/api/v1/stream?token=${encodeURIComponent(this.token)}`)
-    this.es.onopen = () => (this.streaming = true)
+    // При (пере)подключении перечитываем состояние: пока стрима не было,
+    // могло измениться то, о чём уведомление не дошло.
+    this.es.onopen = () => {
+      this.streaming = true
+      this.scheduleRefresh()
+    }
     this.es.onerror = () => (this.streaming = false) // EventSource переподключится сам
     this.es.addEventListener('state_changed', (e) => {
       const seq = Number((e as MessageEvent).data)

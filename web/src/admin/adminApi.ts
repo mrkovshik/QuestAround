@@ -105,6 +105,16 @@ export class ScenarioError extends ApiError {
   }
 }
 
+/** Во время игры новая версия меняет структуру — с перечнем отличий. */
+export class ScenarioConflict extends ApiError {
+  constructor(
+    message: string,
+    public details: ScenarioIssue[],
+  ) {
+    super(409, 'scenario_incompatible', message)
+  }
+}
+
 export type OverrideAction = 'complete_level' | 'open_hint' | 'adjust_time' | 'adjust_points' | 'finish_team'
 
 export class AdminApi {
@@ -125,6 +135,7 @@ export class AdminApi {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       if (data.error === 'invalid_scenario') throw new ScenarioError(data.details ?? [])
+      if (data.error === 'scenario_incompatible') throw new ScenarioConflict(data.message, data.details ?? [])
       throw new ApiError(res.status, data.error ?? 'http_' + res.status, data.message ?? `Ошибка ${res.status}`)
     }
     return data as T

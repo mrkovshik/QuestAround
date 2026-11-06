@@ -78,6 +78,15 @@ type SendBroadcast struct {
 	Text string
 }
 
+// NoteScenarioChanged — записать в журнал, что сценарий заменён.
+// Саму замену делает runner.Manager; событие нужно для истории
+// и чтобы клиенты получили уведомление и перечитали состояние.
+type NoteScenarioChanged struct {
+	VersionID string
+	Slug      string
+	Version   int
+}
+
 // FinishRun — завершить игру для всех.
 type FinishRun struct{}
 
@@ -85,17 +94,18 @@ type FinishRun struct{}
 // лимит времени, заморозка лидерборда.
 type Tick struct{}
 
-func (RegisterTeam) isCommand()   {}
-func (StartRun) isCommand()       {}
-func (StartTeam) isCommand()      {}
-func (SubmitAnswer) isCommand()   {}
-func (RequestHint) isCommand()    {}
-func (Moderate) isCommand()       {}
-func (Override) isCommand()       {}
-func (SetLeaderboard) isCommand() {}
-func (SendBroadcast) isCommand()  {}
-func (FinishRun) isCommand()      {}
-func (Tick) isCommand()           {}
+func (RegisterTeam) isCommand()        {}
+func (StartRun) isCommand()            {}
+func (StartTeam) isCommand()           {}
+func (SubmitAnswer) isCommand()        {}
+func (RequestHint) isCommand()         {}
+func (Moderate) isCommand()            {}
+func (Override) isCommand()            {}
+func (SetLeaderboard) isCommand()      {}
+func (SendBroadcast) isCommand()       {}
+func (FinishRun) isCommand()           {}
+func (NoteScenarioChanged) isCommand() {}
+func (Tick) isCommand()                {}
 
 var (
 	ErrBadCommand         = errors.New("некорректная команда")

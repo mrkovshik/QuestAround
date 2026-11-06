@@ -37,6 +37,10 @@ func NewManager(ctx context.Context, st store.Store, clock Clock, logger *slog.L
 func (m *Manager) Get(ctx context.Context, runID string) (*Runner, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.getLocked(ctx, runID)
+}
+
+func (m *Manager) getLocked(ctx context.Context, runID string) (*Runner, error) {
 	if mr, ok := m.runners[runID]; ok && mr.r.Err() == nil {
 		return mr.r, nil
 	}
@@ -82,34 +86,64 @@ func (m *Manager) stop(runID string) {
 	delete(m.runners, runID)
 }
 
-// ChangeScenario привязывает игру к другой версии сценария. Можно только
-// до старта: зарегистрированные команды и игроки сохраняются — события
-// регистрации не зависят от уровней. После старта — core.ErrRunStarted.
+// ChangeScenario привязывает игру к другой версии сценария.
+//
+// До старта — любой: события регистрации не зависят от уровней.
+// После старта — только совместимой (scenario.CheckCompatible): тексты,
+// коды, координаты, подсказки и т.п. можно править, структуру — нет.
+// Игра переигрывает журнал с новым сценарием; клиенты переподключатся сами.
 func (m *Manager) ChangeScenario(ctx context.Context, runID, versionID string) error {
 	sv, err := m.store.GetScenarioVersion(ctx, versionID)
 	if err != nil {
 		return err
 	}
-	if _, err := scenario.Parse([]byte(sv.Source)); err != nil {
+	next, err := scenario.Parse([]byte(sv.Source))
+	if err != nil {
 		return fmt.Errorf("сценарий: %w", err)
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if _, err := m.store.GetRun(ctx, runID); err != nil {
+	run, err := m.store.GetRun(ctx, runID)
+	if err != nil {
 		return err
 	}
-	// Останавливаем актор, чтобы между проверкой и заменой никто не нажал «Старт»;
-	// статус берём из журнала — он источник правды.
+	// Останавливаем актор, чтобы между проверкой и заменой не появилось новых
+	// событий; статус берём из журнала — он источник правды.
 	m.stop(runID)
 	events, err := m.store.Load(ctx, runID)
 	if err != nil {
 		return err
 	}
+	started := false
 	for _, e := range events {
 		if e.Type == core.EvRunStarted {
-			return core.ErrRunStarted // актор поднимется заново при следующем обращении
+			started = true
+			break
 		}
 	}
-	return m.store.SetRunScenario(ctx, runID, versionID)
+	if started {
+		cur, err := m.store.GetScenarioVersion(ctx, run.ScenarioVersionID)
+		if err != nil {
+			return err
+		}
+		old, err := scenario.Parse([]byte(cur.Source))
+		if err != nil {
+			return fmt.Errorf("текущий сценарий: %w", err)
+		}
+		if err := scenario.CheckCompatible(old, next); err != nil {
+			return err // актор поднимется заново со старым сценарием
+		}
+	}
+	if err := m.store.SetRunScenario(ctx, runID, versionID); err != nil {
+		return err
+	}
+	// Поднимаем актор уже с новым сценарием и отмечаем замену в журнале:
+	// подписчики получат уведомление и перечитают состояние.
+	r, err := m.getLocked(ctx, runID)
+	if err != nil {
+		return err
+	}
+	_, err = r.Do(ctx, core.NoteScenarioChanged{VersionID: sv.ID, Slug: sv.Slug, Version: sv.Version})
+	return err
 }

@@ -3,7 +3,7 @@
 дашборд, модерация фото с клавиатуры, ввод кода за команду, штраф, таблица,
 журнал, сообщение всем, завершение.
 
-Запуск:
+Запуск (на свежем сервере в памяти — скрипт рассчитывает на нумерацию версий с 1):
     QUESTAROUND_ADMIN_TOKEN=e2e-admin-token-000001 questaround serve -addr 127.0.0.1:8091 &
     python3 web/e2e/host_flow.py
 """
@@ -101,7 +101,7 @@ with sync_playwright() as p:
     expect(host.locator(".notice", has_text="версия 2")).to_be_visible()
     host.click("td:has-text('Горячий Ключ: пилот')")
     expect(host.locator(".scn")).to_contain_text("версия 1")
-    host.click(".scn >> text=Заменить")
+    host.click(".scn button:has-text('Заменить')")
     note(host, "Сценарий заменён")
     expect(host.locator(".scn")).to_contain_text("версия 2")
     host.click(".tabs >> text=Регистрация")
@@ -131,6 +131,22 @@ with sync_playwright() as p:
     note(host, "Принято")
     expect(host.locator("text=Очередь пуста")).to_be_visible()
     expect(pl.locator(".badge", has_text="+5").first).to_be_visible(timeout=5000)
+
+    # --- правка сценария во время игры: структуру нельзя, текст можно ---
+    host.click("a.brand")
+    v3 = fixed.replace("Найдите табличку с годом основания", "Найдите бронзовую табличку с годом основания")
+    v4 = v3.replace("  - id: photo\n", "  - id: extra\n    task: лишний\n    answers: [{type: photo}]\n  - id: photo\n")
+    for src, ver in ((v3, "версия 3"), (v4, "версия 4")):
+        host.fill("textarea", src)
+        host.click("text=Проверить и сохранить")
+        expect(host.locator(".notice", has_text=ver)).to_be_visible()
+    host.click("td:has-text('Горячий Ключ: пилот')")
+    host.click(".scn button:has-text('Заменить')")  # по умолчанию — самая новая, v4
+    expect(host.locator(".conflict")).to_contain_text("число уровней")
+    host.locator(".scn select").select_option(label=host.locator(".scn option", has_text="версия 3").inner_text())
+    host.click(".scn button:has-text('Заменить')")
+    note(host, "Сценарий заменён")
+    expect(pl.locator(".task", has_text="бронзовую табличку")).to_be_visible(timeout=8000)
 
     # --- карточка команды «Корпоратив»: код за команду, штраф ---
     host.click(".tabs >> text=Команды")
