@@ -17,20 +17,20 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/internal/webui/dist/app ./internal/webui/dist/app
-RUN go build -trimpath -ldflags="-s -w" -o /out/questline ./cmd/questline
+RUN go build -trimpath -ldflags="-s -w" -o /out/questaround ./cmd/questaround
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata \
  && adduser -D -u 10001 app \
  && mkdir -p /data/media && chown -R app /data
-COPY --from=build /out/questline /usr/local/bin/questline
+COPY --from=build /out/questaround /usr/local/bin/questaround
 USER app
-ENV QUESTLINE_ADDR=:8080 \
-    QUESTLINE_MEDIA_DIR=/data/media \
+ENV QUESTAROUND_ADDR=:8080 \
+    QUESTAROUND_MEDIA_DIR=/data/media \
     TZ=Europe/Moscow
 VOLUME /data
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
   CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
-ENTRYPOINT ["questline"]
+ENTRYPOINT ["questaround"]
 CMD ["serve"]

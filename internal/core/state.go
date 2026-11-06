@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"questline/internal/scenario"
+	"questaround/internal/scenario"
 )
 
 // AnswerKind — что прислал игрок.

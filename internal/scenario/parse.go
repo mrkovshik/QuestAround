@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"questline/internal/routes"
+	"questaround/internal/routes"
 )
 
 // ParseFile читает и разбирает сценарий из файла.

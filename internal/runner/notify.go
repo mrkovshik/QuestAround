@@ -1,6 +1,6 @@
 package runner
 
-import "questline/internal/core"
+import "questaround/internal/core"
 
 // subscription получает Seq последнего изменения, касающегося команды
 // (или любого изменения, если teamID пуст — для ведущего).

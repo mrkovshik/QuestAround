@@ -2,11 +2,11 @@
 офлайн-очередь, таблица.
 
 Запуск (нужны python-пакет playwright и Chrome/Chromium):
-    QUESTLINE_ADMIN_TOKEN=e2e-admin-token-000001 questline serve -addr 127.0.0.1:8091 &
+    QUESTAROUND_ADMIN_TOKEN=e2e-admin-token-000001 questaround serve -addr 127.0.0.1:8091 &
     python3 web/e2e/player_flow.py
 
-Переменные: QL_BASE (по умолчанию http://127.0.0.1:8091), QL_ADMIN_TOKEN, QL_CHROME.
-Скриншоты — в QL_SHOTS (по умолчанию /tmp/questline-shots).
+Переменные: QA_BASE (по умолчанию http://127.0.0.1:8091), QA_ADMIN_TOKEN, QA_CHROME.
+Скриншоты — в QA_SHOTS (по умолчанию /tmp/questaround-shots).
 """
 import json
 import struct
@@ -19,10 +19,10 @@ from playwright.sync_api import sync_playwright, expect
 
 import os
 
-BASE = os.environ.get("QL_BASE", "http://127.0.0.1:8091")
-ADMIN = os.environ.get("QL_ADMIN_TOKEN", "e2e-admin-token-000001")
-CHROME = os.environ.get("QL_CHROME", "/usr/bin/google-chrome")
-SHOTS = os.environ.get("QL_SHOTS", "/tmp/questline-shots")
+BASE = os.environ.get("QA_BASE", "http://127.0.0.1:8091")
+ADMIN = os.environ.get("QA_ADMIN_TOKEN", "e2e-admin-token-000001")
+CHROME = os.environ.get("QA_CHROME", "/usr/bin/google-chrome")
+SHOTS = os.environ.get("QA_SHOTS", "/tmp/questaround-shots")
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 

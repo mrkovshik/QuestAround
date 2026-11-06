@@ -10,7 +10,7 @@ import (
 	"errors"
 	"time"
 
-	"questline/internal/core"
+	"questaround/internal/core"
 )
 
 var (

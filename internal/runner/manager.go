@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"sync"
 
-	"questline/internal/scenario"
-	"questline/internal/store"
+	"questaround/internal/scenario"
+	"questaround/internal/store"
 )
 
 // Manager поднимает акторы игр по требованию и держит по одному на игру.

@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"questline/internal/core"
-	"questline/internal/scenario"
-	"questline/internal/store"
+	"questaround/internal/core"
+	"questaround/internal/scenario"
+	"questaround/internal/store"
 )
 
 // ErrStopped — актор остановлен (контекст отменён или фатальная ошибка).

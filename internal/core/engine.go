@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"questline/internal/routes"
-	"questline/internal/scenario"
+	"questaround/internal/routes"
+	"questaround/internal/scenario"
 )
 
 // tx накапливает события одной команды. Каждое событие сразу применяется,

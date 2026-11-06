@@ -4,7 +4,7 @@ import (
 	"math"
 	"regexp"
 
-	"questline/internal/scenario"
+	"questaround/internal/scenario"
 )
 
 // isTextAnswer — ответ проверяется по набранному тексту.

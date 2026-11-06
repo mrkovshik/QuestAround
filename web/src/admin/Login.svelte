@@ -28,7 +28,7 @@
   <form class="card stack login" onsubmit={submit}>
     <h1>Вход для ведущего</h1>
     <div>
-      <label for="tok">Токен ведущего (QUESTLINE_ADMIN_TOKEN)</label>
+      <label for="tok">Токен ведущего (QUESTAROUND_ADMIN_TOKEN)</label>
       <input id="tok" type="password" bind:value={token} autocomplete="current-password" required />
     </div>
     {#if error}<div class="notice">{error}</div>{/if}

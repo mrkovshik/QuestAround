@@ -1,4 +1,4 @@
-# questline
+# questaround
 
 Движок городских игр: квесты, фото-охота, квесты-прогулки (позже онлайн-квизы).
 Спецификация лежит в проекте «велоигры в Нови Саде»: `архитектура-платформы.md`,
@@ -14,18 +14,18 @@ docker compose up -d && make test-pg   # с Postgres
 # фронтенд игрока (нужен Node 20+), вшивается в бинарник
 make web
 
-# сервер (без QUESTLINE_DATABASE_URL — всё в памяти)
-QUESTLINE_ADMIN_TOKEN=$(openssl rand -hex 16) \
-QUESTLINE_DATABASE_URL=postgres://postgres:postgres@localhost:5432/questline \
-go run ./cmd/questline serve
-go run ./cmd/questline validate internal/scenario/testdata/pilot.yaml
-go run ./cmd/questline routes -teams 5 internal/scenario/testdata/pilot.yaml
+# сервер (без QUESTAROUND_DATABASE_URL — всё в памяти)
+QUESTAROUND_ADMIN_TOKEN=$(openssl rand -hex 16) \
+QUESTAROUND_DATABASE_URL=postgres://postgres:postgres@localhost:5432/questaround \
+go run ./cmd/questaround serve
+go run ./cmd/questaround validate internal/scenario/testdata/pilot.yaml
+go run ./cmd/questaround routes -teams 5 internal/scenario/testdata/pilot.yaml
 ```
 
 ## Структура
 
 ```
-cmd/questline/            CLI: serve (HTTP-сервер), validate, routes
+cmd/questaround/            CLI: serve (HTTP-сервер), validate, routes
 internal/
   scenario/               YAML-сценарий: типы, дефолты, валидация с номерами строк
     testdata/pilot.yaml   пример сценария (гибрид, пилот в Горячем Ключе)
@@ -120,13 +120,13 @@ web/                      PWA игрока: Svelte 5 + Vite + TypeScript
 
 **httpapi**
 - Токен игрока `<runID>.<playerID>.<secret>`, в журнале только `sha256(secret)`;
-  удалённый игрок теряет доступ сразу. Ведущий — статический `QUESTLINE_ADMIN_TOKEN`.
+  удалённый игрок теряет доступ сразу. Ведущий — статический `QUESTAROUND_ADMIN_TOKEN`.
 - Ошибки: `{"error": "<код>", "message": "<по-русски>"}`; невалидный сценарий → 422 со строками.
 - Игроку никогда не отдаются коды, регэкспы и координаты.
 - SSE (`/api/v1/stream`, `/admin/v1/runs/{id}/stream`): `event: state_changed`, `data: <seq>`;
   токен можно передать `?token=` (EventSource не умеет заголовки).
 - Фото: multipart `photo` + `level_id` / `bonus_id` / `answer_idx`; JPEG, PNG, WebP, GIF до 15 МБ;
-  хранятся на диске (`QUESTLINE_MEDIA_DIR`), отдаются только ведущему.
+  хранятся на диске (`QUESTAROUND_MEDIA_DIR`), отдаются только ведущему.
 
 ### API игрока
 
@@ -163,7 +163,7 @@ web/                      PWA игрока: Svelte 5 + Vite + TypeScript
 - Светлая и тёмная тема по системной настройке.
 - Разработка: `make web-dev` (Vite на :5173 проксирует API на :8080).
 
-**Админка ведущего** (`/admin`, вход по `QUESTLINE_ADMIN_TOKEN`)
+**Админка ведущего** (`/admin`, вход по `QUESTAROUND_ADMIN_TOKEN`)
 - Игры и сценарии: загрузка YAML (файлом или вставкой) с ошибками по строкам, версии, создание игры.
 - Шапка игры: статус, код и ссылка, QR для афиши, «открыть как игрок», старт/завершение, сообщение всем.
 - **Команды**: живая таблица — текущий уровень, сколько на нём (красным > 25 мин), секторы, подсказки,

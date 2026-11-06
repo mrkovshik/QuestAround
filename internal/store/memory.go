@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"questline/internal/core"
+	"questaround/internal/core"
 )
 
 // Memory — хранилище в памяти. Для тестов и локального запуска без Postgres.

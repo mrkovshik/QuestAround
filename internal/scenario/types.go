@@ -2,7 +2,7 @@
 // значения по умолчанию и валидацию с номерами строк в ошибках.
 package scenario
 
-import "questline/internal/routes"
+import "questaround/internal/routes"
 
 // SchemaVersion — поддерживаемая версия схемы сценария.
 const SchemaVersion = 1

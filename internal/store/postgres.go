@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"questline/internal/core"
+	"questaround/internal/core"
 )
 
 //go:embed migrations/*.sql

@@ -13,8 +13,8 @@
 <main class="page">
   <div class="hero">
     <img src="/icon.svg" alt="" width="72" height="72" />
-    <h1>Городская игра</h1>
-    <p class="muted">Введите код игры от организатора или откройте ссылку-приглашение.</p>
+    <h1>QuestAround</h1>
+    <p class="muted">Городские игры и квесты. Введите код игры от организатора или откройте ссылку-приглашение.</p>
   </div>
   <form class="card stack" onsubmit={go}>
     <div>

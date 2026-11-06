@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"questline/internal/runner"
-	"questline/internal/store"
+	"questaround/internal/runner"
+	"questaround/internal/store"
 )
 
 // Config — зависимости сервера.

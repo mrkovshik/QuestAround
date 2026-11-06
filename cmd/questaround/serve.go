@@ -12,10 +12,10 @@ import (
 	"syscall"
 	"time"
 
-	"questline/internal/httpapi"
-	"questline/internal/runner"
-	"questline/internal/store"
-	"questline/internal/webui"
+	"questaround/internal/httpapi"
+	"questaround/internal/runner"
+	"questaround/internal/store"
+	"questaround/internal/webui"
 )
 
 func env(key, def string) string {
@@ -27,16 +27,16 @@ func env(key, def string) string {
 
 func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	addr := fs.String("addr", env("QUESTLINE_ADDR", ":8080"), "адрес HTTP-сервера")
-	dsn := fs.String("db", env("QUESTLINE_DATABASE_URL", ""), "Postgres DSN; пусто — хранение в памяти (только для разработки)")
-	mediaDir := fs.String("media", env("QUESTLINE_MEDIA_DIR", "./data/media"), "каталог для фото")
-	adminToken := fs.String("admin-token", env("QUESTLINE_ADMIN_TOKEN", ""), "токен ведущего (обязателен)")
-	debug := fs.Bool("debug", os.Getenv("QUESTLINE_DEBUG") != "", "подробные логи")
+	addr := fs.String("addr", env("QUESTAROUND_ADDR", ":8080"), "адрес HTTP-сервера")
+	dsn := fs.String("db", env("QUESTAROUND_DATABASE_URL", ""), "Postgres DSN; пусто — хранение в памяти (только для разработки)")
+	mediaDir := fs.String("media", env("QUESTAROUND_MEDIA_DIR", "./data/media"), "каталог для фото")
+	adminToken := fs.String("admin-token", env("QUESTAROUND_ADMIN_TOKEN", ""), "токен ведущего (обязателен)")
+	debug := fs.Bool("debug", os.Getenv("QUESTAROUND_DEBUG") != "", "подробные логи")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if len(*adminToken) < 16 {
-		return errors.New("задайте QUESTLINE_ADMIN_TOKEN (не короче 16 символов)")
+		return errors.New("задайте QUESTAROUND_ADMIN_TOKEN (не короче 16 символов)")
 	}
 
 	level := slog.LevelInfo
@@ -50,7 +50,7 @@ func cmdServe(args []string) error {
 
 	var st store.Store
 	if *dsn == "" {
-		log.Warn("QUESTLINE_DATABASE_URL не задан — данные хранятся в памяти и пропадут при перезапуске")
+		log.Warn("QUESTAROUND_DATABASE_URL не задан — данные хранятся в памяти и пропадут при перезапуске")
 		st = store.NewMemory()
 	} else {
 		pg, err := store.OpenPostgres(ctx, *dsn)

@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"strings"
 
-	"questline/internal/core"
-	"questline/internal/runner"
+	"questaround/internal/core"
+	"questaround/internal/runner"
 )
 
 // Токен игрока: "<runID>.<playerID>.<secret>". runID и playerID позволяют

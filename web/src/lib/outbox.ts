@@ -11,7 +11,7 @@ export interface OutboxItem {
   photo?: { blob: Blob; level_id: string; bonus_id?: string; answer_idx?: number }
 }
 
-const DB = 'questline'
+const DB = 'questaround'
 const STORE = 'outbox'
 
 function open(): Promise<IDBDatabase> {

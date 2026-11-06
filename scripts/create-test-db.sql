@@ -1,1 +1,1 @@
-CREATE DATABASE questline_test;
+CREATE DATABASE questaround_test;

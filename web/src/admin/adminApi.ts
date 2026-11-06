@@ -169,7 +169,7 @@ export class AdminApi {
   }
 }
 
-const KEY = 'ql:admin'
+const KEY = 'qa:admin'
 export const adminToken = {
   get: () => localStorage.getItem(KEY),
   set: (t: string) => localStorage.setItem(KEY, t),

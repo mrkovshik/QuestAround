@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"questline/internal/routes"
+	"questaround/internal/routes"
 )
 
 var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)

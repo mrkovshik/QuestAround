@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"questline/internal/core"
-	"questline/internal/runner"
+	"questaround/internal/core"
+	"questaround/internal/runner"
 )
 
 // SSE: сервер только сообщает «состояние изменилось» (event: state_changed,

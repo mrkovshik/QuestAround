@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"questline/internal/core"
-	"questline/internal/runner"
-	"questline/internal/scenario"
-	"questline/internal/store"
+	"questaround/internal/core"
+	"questaround/internal/runner"
+	"questaround/internal/scenario"
+	"questaround/internal/store"
 )
 
 const maxScenarioSize = 1 << 20

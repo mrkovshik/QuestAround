@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"questline/internal/core"
-	"questline/internal/scenario"
+	"questaround/internal/core"
+	"questaround/internal/scenario"
 )
 
 // DTO: то, что видит клиент. Коды ответов, регэкспы и координаты гео-точек

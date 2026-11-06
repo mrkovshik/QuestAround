@@ -2,18 +2,20 @@
 # Запуск из каталога deploy/:  docker compose up -d --build
 # Настройки — в deploy/.env (образец: .env.example).
 
+name: questaround
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: questline
-      POSTGRES_USER: questline
+      POSTGRES_DB: questaround
+      POSTGRES_USER: questaround
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U questline -d questline"]
+      test: ["CMD-SHELL", "pg_isready -U questaround -d questaround"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -25,8 +27,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      QUESTLINE_DATABASE_URL: postgres://questline:${POSTGRES_PASSWORD}@postgres:5432/questline?sslmode=disable
-      QUESTLINE_ADMIN_TOKEN: ${ADMIN_TOKEN:?задайте ADMIN_TOKEN в .env}
+      QUESTAROUND_DATABASE_URL: postgres://questaround:${POSTGRES_PASSWORD}@postgres:5432/questaround?sslmode=disable
+      QUESTAROUND_ADMIN_TOKEN: ${ADMIN_TOKEN:?задайте ADMIN_TOKEN в .env}
     volumes:
       - media:/data
     # Наружу не публикуется — только через Caddy.
@@ -65,13 +67,13 @@ services:
     command:
       - |
         while true; do
-          f=/backups/questline-$$(date +%Y%m%d-%H%M).sql.gz
-          if pg_dump -h postgres -U questline questline | gzip > "$$f.tmp"; then
+          f=/backups/questaround-$$(date +%Y%m%d-%H%M).sql.gz
+          if pg_dump -h postgres -U questaround questaround | gzip > "$$f.tmp"; then
             mv "$$f.tmp" "$$f" && echo "бэкап: $$f"
           else
             rm -f "$$f.tmp"; echo "бэкап НЕ удался" >&2
           fi
-          find /backups -name 'questline-*.sql.gz' -mtime +14 -delete
+          find /backups -name 'questaround-*.sql.gz' -mtime +14 -delete
           sleep 86400
         done
 

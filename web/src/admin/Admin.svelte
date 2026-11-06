@@ -16,7 +16,7 @@
   }
 
   $effect(() => {
-    document.title = 'Ведущий — городская игра'
+    document.title = 'QuestAround — ведущий'
   })
 </script>
 
@@ -25,7 +25,7 @@
     <Login onLogin={(t) => (token = t)} />
   {:else}
     <header class="topbar">
-      <a class="brand" href="/admin" onclick={(e) => (e.preventDefault(), router.go('/admin'))}>Ведущий</a>
+      <a class="brand" href="/admin" onclick={(e) => (e.preventDefault(), router.go('/admin'))}>QuestAround · ведущий</a>
       <span class="grow"></span>
       <button class="ghost small" onclick={logout}>Выйти</button>
     </header>

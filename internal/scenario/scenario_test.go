@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"questline/internal/routes"
+	"questaround/internal/routes"
 )
 
 func TestParsePilot(t *testing.T) {

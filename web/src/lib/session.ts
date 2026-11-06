@@ -1,6 +1,6 @@
 // Токен игрока хранится в localStorage отдельно для каждой игры.
 
-const key = (code: string) => `ql:token:${code.toUpperCase()}`
+const key = (code: string) => `qa:token:${code.toUpperCase()}`
 
 export function getToken(code: string): string | null {
   try {

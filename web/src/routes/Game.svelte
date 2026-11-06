@@ -36,12 +36,12 @@
 
   // Последнее сообщение ведущего, пока игрок его не закрыл.
   // svelte-ignore state_referenced_locally
-  let dismissed = $state(Number(localStorage.getItem(`ql:msg:${code}`) ?? 0))
+  let dismissed = $state(Number(localStorage.getItem(`qa:msg:${code}`) ?? 0))
   const lastMsg = $derived(s?.messages.at(-1))
   const showMsg = $derived(!!lastMsg && Date.parse(lastMsg.at) > dismissed)
   function dismissMsg() {
     dismissed = Date.parse(lastMsg!.at)
-    localStorage.setItem(`ql:msg:${code}`, String(dismissed))
+    localStorage.setItem(`qa:msg:${code}`, String(dismissed))
   }
 
   $effect(() => {

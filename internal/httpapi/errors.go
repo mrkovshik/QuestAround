@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 
-	"questline/internal/core"
-	"questline/internal/scenario"
-	"questline/internal/store"
+	"questaround/internal/core"
+	"questaround/internal/scenario"
+	"questaround/internal/store"
 )
 
 // apiError — ошибка с HTTP-статусом и машиночитаемым кодом.

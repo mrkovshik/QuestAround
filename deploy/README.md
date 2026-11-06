@@ -14,7 +14,7 @@
 Сервер лучше открывать по ключу, а не по паролю.
 
 ```sh
-ssh-keygen -t ed25519 -C "questline"      # Enter на все вопросы
+ssh-keygen -t ed25519 -C "questaround"      # Enter на все вопросы
 cat ~/.ssh/id_ed25519.pub                 # эту строку вставим в панели хостера
 ```
 
@@ -82,7 +82,7 @@ docker pull alpine && echo "Docker работает"
 Репозиторий приватный — дадим серверу доступ только на чтение через deploy key.
 
 ```sh
-ssh-keygen -t ed25519 -f ~/.ssh/github -N "" -C "questline-server"
+ssh-keygen -t ed25519 -f ~/.ssh/github -N "" -C "questaround-server"
 cat ~/.ssh/github.pub
 ```
 
@@ -94,13 +94,13 @@ cat >> ~/.ssh/config <<'EOF'
 Host github.com
   IdentityFile ~/.ssh/github
 EOF
-git clone git@github.com:mrkovshik/QuestLine.git /opt/questline
+git clone git@github.com:mrkovshik/QuestAround.git /opt/questaround
 ```
 
 ## 6. Настройки и запуск
 
 ```sh
-cd /opt/questline/deploy
+cd /opt/questaround/deploy
 cp .env.example .env
 sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
 sed -i "s/^ADMIN_TOKEN=.*/ADMIN_TOKEN=$(openssl rand -hex 24)/" .env
@@ -131,7 +131,7 @@ grep ADMIN_TOKEN .env
 ## Обновление
 
 ```sh
-/opt/questline/deploy/update.sh
+/opt/questaround/deploy/update.sh
 ```
 
 Код подтянется из GitHub, образ пересоберётся, приложение перезапустится. Игры не теряются —
@@ -139,18 +139,18 @@ grep ADMIN_TOKEN .env
 
 ## Бэкапы
 
-- Автоматически: дамп базы раз в сутки в `/opt/questline/deploy/backups`, хранятся 14 дней.
+- Автоматически: дамп базы раз в сутки в `/opt/questaround/deploy/backups`, хранятся 14 дней.
 - Вручную (база + фото), например перед игрой и после неё:
   ```sh
-  /opt/questline/deploy/backup.sh
+  /opt/questaround/deploy/backup.sh
   ```
 - Скачать к себе (на своём компьютере):
   ```sh
-  scp 'root@IP:/opt/questline/deploy/backups/*' ./questline-backups/
+  scp 'root@IP:/opt/questaround/deploy/backups/*' ./questaround-backups/
   ```
 - Восстановить базу:
   ```sh
-  /opt/questline/deploy/restore.sh backups/questline-YYYYMMDD-HHMM.sql.gz
+  /opt/questaround/deploy/restore.sh backups/questaround-YYYYMMDD-HHMM.sql.gz
   ```
 
 ## Если что-то не так

@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"questline/internal/core"
-	"questline/internal/runner"
-	"questline/internal/store"
+	"questaround/internal/core"
+	"questaround/internal/runner"
+	"questaround/internal/store"
 )
 
 const maxPhotoSize = 15 << 20

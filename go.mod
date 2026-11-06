@@ -1,4 +1,4 @@
-module questline
+module questaround
 
 go 1.25
 

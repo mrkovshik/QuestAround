@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"questline/internal/core"
+	"questaround/internal/core"
 )
 
-// Тесты Postgres запускаются, только если задан QUESTLINE_TEST_DATABASE_URL
-// (пустая база, например postgres://postgres@localhost:5432/questline_test).
+// Тесты Postgres запускаются, только если задан QUESTAROUND_TEST_DATABASE_URL
+// (пустая база, например postgres://postgres@localhost:5432/questaround_test).
 func stores(t *testing.T) map[string]Store {
 	out := map[string]Store{"memory": NewMemory()}
-	dsn := os.Getenv("QUESTLINE_TEST_DATABASE_URL")
+	dsn := os.Getenv("QUESTAROUND_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Log("QUESTLINE_TEST_DATABASE_URL не задан — Postgres пропущен")
+		t.Log("QUESTAROUND_TEST_DATABASE_URL не задан — Postgres пропущен")
 		return out
 	}
 	ctx := context.Background()

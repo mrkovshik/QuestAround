@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"questline/internal/runner"
-	"questline/internal/store"
+	"questaround/internal/runner"
+	"questaround/internal/store"
 )
 
 const adminToken = "test-admin-token-123456"

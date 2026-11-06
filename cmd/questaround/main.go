@@ -1,8 +1,8 @@
-// Команда questline — утилиты для авторов сценариев.
+// Команда questaround — утилиты для авторов сценариев.
 //
-//	questline serve                       HTTP-сервер (настройки — флаги или QUESTLINE_*)
-//	questline validate <scenario.yaml>
-//	questline routes [-teams N] [-seed S] <scenario.yaml>
+//	questaround serve                       HTTP-сервер (настройки — флаги или QUESTAROUND_*)
+//	questaround validate <scenario.yaml>
+//	questaround routes [-teams N] [-seed S] <scenario.yaml>
 package main
 
 import (
@@ -12,8 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"questline/internal/routes"
-	"questline/internal/scenario"
+	"questaround/internal/routes"
+	"questaround/internal/scenario"
 )
 
 func main() {
@@ -49,9 +49,9 @@ func main() {
 
 func usage() {
 	fmt.Fprint(os.Stderr, `Использование:
-  questline serve [-addr :8080] [-db DSN] [-media DIR] [-admin-token T]   HTTP-сервер
-  questline validate <scenario.yaml>                  проверить сценарий
-  questline routes [-teams N] [-seed S] <scenario.yaml>  показать маршруты команд
+  questaround serve [-addr :8080] [-db DSN] [-media DIR] [-admin-token T]   HTTP-сервер
+  questaround validate <scenario.yaml>                  проверить сценарий
+  questaround routes [-teams N] [-seed S] <scenario.yaml>  показать маршруты команд
 `)
 }
 
