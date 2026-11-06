@@ -185,13 +185,29 @@ with sync_playwright() as p:
     host.click("button:has-text('Завершить игру')")
     note(host, "Игра завершена")
     expect(pl.locator("h2", has_text="Финиш!")).to_be_visible(timeout=5000)
-    host.click(".tabs >> text=Таблица")
-    host.screenshot(path=f"{SHOTS}/h07-final-table.png")
+    expect(pl.locator("text=Ведущий подводит итоги")).to_be_visible()
+    # расшифровка баллов у игрока: фото-бонус +5
+    expect(pl.locator(".ledger li", has_text="Бонус «Селфи всей командой у ворот»")).to_contain_text("+5")
+
+    # --- утверждение итогов ---
+    expect(host.locator(".finbanner")).to_be_visible()
+    host.click(".finbanner >> text=К итогам")
+    host.fill("#cmsg", "Награждение в 18:00 у фонтана!")
+    host.screenshot(path=f"{SHOTS}/h07-approve.png", full_page=True)
+    host.click("button:has-text('Утвердить итоги')")
+    note(host, "Итоги утверждены")
+    expect(host.locator("h2", has_text="Итоги (утверждены)")).to_be_visible()
+    expect(pl.locator(".congrats")).to_contain_text("место", timeout=8000)
+    expect(pl.locator(".congrats")).to_contain_text("Награждение в 18:00")
+    pl.screenshot(path=f"{SHOTS}/h08-congrats.png", full_page=True)
+    pl.click("text=Итоговая таблица")
+    expect(pl.locator("h2", has_text="Итоги")).to_be_visible()
+    host.screenshot(path=f"{SHOTS}/h09-final-table.png")
 
     # --- список игр ---
     host.click("a.brand")
     expect(host.locator("td", has_text="Горячий Ключ: пилот")).to_be_visible()
-    host.screenshot(path=f"{SHOTS}/h08-runs.png")
+    host.screenshot(path=f"{SHOTS}/h10-runs.png")
     browser.close()
 
 if errors:

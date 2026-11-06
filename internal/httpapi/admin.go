@@ -266,6 +266,18 @@ func (s *Server) finishRun(w http.ResponseWriter, r *http.Request) {
 	s.command(w, r, core.FinishRun{})
 }
 
+// approveResults — утвердить итоги после завершения игры; повторный вызов перезаписывает.
+func (s *Server) approveResults(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Message string `json:"message"`
+	}
+	if err := readJSON(w, r, &req); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	s.command(w, r, core.ApproveResults{Message: req.Message})
+}
+
 func (s *Server) startTeam(w http.ResponseWriter, r *http.Request) {
 	s.command(w, r, core.StartTeam{TeamID: r.PathValue("team")})
 }

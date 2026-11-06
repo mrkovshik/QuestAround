@@ -36,6 +36,7 @@
     leaderboard_frozen: 'Таблица заморожена',
     broadcast: 'Сообщение всем',
     scenario_changed: 'Замена сценария',
+    results_approved: 'Итоги утверждены',
   }
   const ACTION: Record<string, string> = {
     complete_level: 'засчитан уровень',
@@ -99,6 +100,11 @@
         return p.name
       case 'broadcast':
         return p.text
+      case 'results_approved':
+        return (p.standings ?? [])
+          .slice(0, 3)
+          .map((s: any) => `${s.rank}. ${s.name}`)
+          .join(', ') + (p.message ? ` — «${p.message}»` : '')
       case 'scenario_changed':
         return `${p.slug}, версия ${p.version}`
       case 'leaderboard_visibility_set':

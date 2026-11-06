@@ -87,6 +87,12 @@ type NoteScenarioChanged struct {
 	Version   int
 }
 
+// ApproveResults — утвердить итоги (только после завершения игры).
+// Можно повторить после правок — итоги перезапишутся.
+type ApproveResults struct {
+	Message string // общее сообщение командам, например «награждение в 18:00 у фонтана»
+}
+
 // FinishRun — завершить игру для всех.
 type FinishRun struct{}
 
@@ -105,6 +111,7 @@ func (SetLeaderboard) isCommand()      {}
 func (SendBroadcast) isCommand()       {}
 func (FinishRun) isCommand()           {}
 func (NoteScenarioChanged) isCommand() {}
+func (ApproveResults) isCommand()      {}
 func (Tick) isCommand()                {}
 
 var (
@@ -127,6 +134,7 @@ var (
 	ErrNotAllowed         = errors.New("действие недоступно")
 	ErrNotPending         = errors.New("ответ не ждёт модерации")
 	ErrReasonRequired     = errors.New("укажите причину")
+	ErrRunNotFinished     = errors.New("игра ещё не завершена")
 )
 
 // Outcome — результат обработки команды.

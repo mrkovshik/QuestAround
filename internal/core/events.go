@@ -35,6 +35,7 @@ const (
 	EvLeaderboardFrozen        EventType = "leaderboard_frozen"
 	EvBroadcast                EventType = "broadcast"
 	EvScenarioChanged          EventType = "scenario_changed"
+	EvResultsApproved          EventType = "results_approved"
 )
 
 // Event — запись журнала. Состояние игры — свёртка событий через Apply.
@@ -179,6 +180,13 @@ type Broadcast struct {
 	Text string `json:"text"`
 }
 
+// ResultsApproved — ведущий утвердил итоги: таблица на этот момент
+// становится окончательной, команды получают поздравления.
+type ResultsApproved struct {
+	Standings []Standing `json:"standings"`
+	Message   string     `json:"message,omitempty"`
+}
+
 // ScenarioChanged — ведущий заменил версию сценария (до старта или совместимую во время игры).
 type ScenarioChanged struct {
 	VersionID string `json:"version_id"`
@@ -211,6 +219,7 @@ func (LeaderboardVisibilitySet) Type() EventType { return EvLeaderboardVisibilit
 func (LeaderboardFrozen) Type() EventType        { return EvLeaderboardFrozen }
 func (Broadcast) Type() EventType                { return EvBroadcast }
 func (ScenarioChanged) Type() EventType          { return EvScenarioChanged }
+func (ResultsApproved) Type() EventType          { return EvResultsApproved }
 
 var payloadFactory = map[EventType]func() Payload{
 	EvRunStarted:               func() Payload { return &RunStarted{} },
@@ -238,6 +247,7 @@ var payloadFactory = map[EventType]func() Payload{
 	EvLeaderboardFrozen:        func() Payload { return &LeaderboardFrozen{} },
 	EvBroadcast:                func() Payload { return &Broadcast{} },
 	EvScenarioChanged:          func() Payload { return &ScenarioChanged{} },
+	EvResultsApproved:          func() Payload { return &ResultsApproved{} },
 }
 
 // DecodePayload восстанавливает payload по типу события (для хранилища).
@@ -307,6 +317,8 @@ func deref(p Payload) Payload {
 	case *Broadcast:
 		return *v
 	case *ScenarioChanged:
+		return *v
+	case *ResultsApproved:
 		return *v
 	}
 	return p

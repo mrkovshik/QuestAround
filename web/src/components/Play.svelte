@@ -6,7 +6,8 @@
 
   const s = $derived(live.state!)
   const playing = $derived(s.team.status === 'playing')
-  const open = $derived(s.levels.filter((l) => l.open))
+  // После финиша незаконченные уровни не показываем — только пройденные.
+  const open = $derived(playing ? s.levels.filter((l) => l.open) : [])
   const done = $derived(s.levels.filter((l) => !l.open).reverse())
 
   // Общее поле кода: ответ ищется по всем открытым уровням и бонусам.

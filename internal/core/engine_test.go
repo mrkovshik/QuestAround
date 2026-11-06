@@ -397,9 +397,66 @@ levels:
 	h.eq("снова по сценарию", ok, false)
 
 	h.do(FinishRun{})
+	_, ok = h.g.LeaderboardFor("x", h.now)
+	h.eq("после игры, до утверждения итогов — по сценарию (host: скрыта)", ok, false)
+
+	h.do(ApproveResults{Message: "Награждение у фонтана"})
 	st, ok = h.g.LeaderboardFor("x", h.now)
-	h.eq("после игры видно", ok, true)
-	h.eq("после игры живая", st[0].TeamID, "y")
+	h.eq("после утверждения видно", ok, true)
+	h.eq("итоги — живые на момент утверждения", st[0].TeamID, "y")
+}
+
+func TestApproveResults(t *testing.T) {
+	h := newHarness(t, `
+version: 1
+id: x
+title: x
+scoring: {mode: points}
+levels:
+  - {id: a, task: t, points: 10, answers: [{type: code, values: ["1"]}]}
+`, "x", "y", "z")
+	h.do(StartRun{})
+	h.fail(ApproveResults{}, ErrRunNotFinished)
+	h.code("x", "1")
+	h.code("y", "1")
+	h.do(FinishRun{})
+
+	h.do(ApproveResults{Message: " В 18:00 у фонтана "})
+	r := h.g.Results
+	h.eq("сообщение", r.Message, "В 18:00 у фонтана")
+	h.eq("места", []int{r.Standings[0].Rank, r.Standings[1].Rank, r.Standings[2].Rank}, []int{1, 1, 3})
+
+	// Правка после утверждения не меняет итоги, пока ведущий не утвердит заново.
+	h.do(Override{TeamID: "y", Action: OverrideAdjustPoints, Points: 5, Reason: "лучший костюм"})
+	st, _ := h.g.LeaderboardFor("z", h.now)
+	h.eq("итоги заморожены", st[0].Points, 10)
+	h.do(ApproveResults{})
+	st, _ = h.g.LeaderboardFor("z", h.now)
+	h.eq("после повторного утверждения — лидер y", st[0].TeamID, "y")
+	h.eq("единоличный лидер", st[1].Rank, 2)
+}
+
+func TestScoreLedger(t *testing.T) {
+	h := newHarness(t, linearYAML, "a")
+	h.do(StartRun{})
+	h.code("a", "бонус")                                                       // бонус +2
+	h.do(RequestHint{TeamID: "a", IsCaptain: true, LevelID: "l1", HintIdx: 1}) // +5 мин
+	h.do(RequestHint{TeamID: "a", IsCaptain: true, LevelID: "l1", HintIdx: 2}) // −3 балла
+	h.code("a", "ёж")                                                          // уровень +10
+	h.do(Override{TeamID: "a", Action: OverrideAdjustTime, Time: -2 * time.Minute, Reason: "без связи"})
+	h.advance(10 * time.Minute)
+	h.tick() // автоподсказки без штрафа в расшифровку не попадают
+
+	var kinds []string
+	sum, tm := 0, time.Duration(0)
+	for _, e := range h.team("a").Ledger {
+		kinds = append(kinds, e.Kind)
+		sum += e.Points
+		tm += e.Time
+	}
+	h.eq("строки", kinds, []string{"bonus", "hint", "hint", "level", "adjust"})
+	h.eq("сумма баллов совпадает", sum, h.team("a").Points)
+	h.eq("сумма времени совпадает", tm, h.team("a").PenaltyTime)
 }
 
 func TestLeaderboardAfterFinish(t *testing.T) {

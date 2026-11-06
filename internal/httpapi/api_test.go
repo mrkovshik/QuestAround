@@ -540,3 +540,55 @@ levels:
 		t.Fatalf("после правки: %+v", ans)
 	}
 }
+
+func TestScoreAndResults(t *testing.T) {
+	ts := newTestServer(t)
+	var sv scenarioVersionDTO
+	ts.must(201, "POST", "/admin/v1/scenarios", adminToken, e2eYAML).json(t, &sv)
+	var run runDTO
+	ts.must(201, "POST", "/admin/v1/runs", adminToken, map[string]string{"scenario_version_id": sv.ID}).json(t, &run)
+	admin := "/admin/v1/runs/" + run.ID
+	game := "/api/v1/games/" + run.PublicCode
+
+	var a, b credentialsDTO
+	ts.must(201, "POST", game+"/teams", "", map[string]string{"team_name": "Альфа", "captain_name": "А"}).json(t, &a)
+	ts.must(201, "POST", game+"/teams", "", map[string]string{"team_name": "Бета", "captain_name": "Б"}).json(t, &b)
+	ts.must(200, "POST", admin+"/start", adminToken, nil)
+
+	ts.must(204, "POST", "/api/v1/levels/l1/hints/0", a.Token, nil) // +5 мин
+	ts.must(200, "POST", "/api/v1/answers", a.Token, map[string]string{"kind": "code", "value": "1864"})
+	ts.must(200, "POST", admin+"/teams/"+b.TeamID+"/override", adminToken, map[string]any{"action": "adjust_points", "points": 3, "reason": "за костюмы"})
+
+	var st playerStateDTO
+	ts.must(200, "GET", "/api/v1/state", a.Token, nil).json(t, &st)
+	if len(st.Score) != 2 || st.Score[0].Kind != "hint" || st.Score[0].TimeSec != 300 ||
+		st.Score[1].Title != "Уровень «Старт»" || st.Score[1].Points != 10 || st.ScoringRule == "" {
+		t.Fatalf("расшифровка: %+v, правило %q", st.Score, st.ScoringRule)
+	}
+
+	if c := ts.must(409, "POST", admin+"/results", adminToken, map[string]string{}).errCode(t); c != "run_not_finished" {
+		t.Fatalf("код %s", c)
+	}
+	ts.must(200, "POST", admin+"/finish", adminToken, nil)
+	ts.must(403, "GET", "/api/v1/leaderboard", b.Token, nil) // visibility: host — до утверждения скрыта
+
+	var dash dashboardDTO
+	ts.must(200, "POST", admin+"/results", adminToken, map[string]string{"message": "Награждение в 18:00"}).json(t, &dash)
+	if dash.Results == nil || dash.Results.Standings[0].TeamID != a.TeamID {
+		t.Fatalf("итоги: %+v", dash.Results)
+	}
+
+	ts.must(200, "GET", "/api/v1/state", b.Token, nil).json(t, &st)
+	if st.Results == nil || st.Results.Rank != 2 || st.Results.Teams != 2 || st.Results.Message != "Награждение в 18:00" || !st.Leaderboard.Final {
+		t.Fatalf("итоги у игрока: %+v", st.Results)
+	}
+	var lb struct {
+		Final     bool          `json:"final"`
+		Rule      string        `json:"rule"`
+		Standings []standingDTO `json:"standings"`
+	}
+	ts.must(200, "GET", "/api/v1/leaderboard", b.Token, nil).json(t, &lb)
+	if !lb.Final || lb.Rule == "" || len(lb.Standings) != 2 {
+		t.Fatalf("таблица: %+v", lb)
+	}
+}

@@ -10,14 +10,14 @@ import (
 
 // Standing — строка лидерборда.
 type Standing struct {
-	Rank     int
-	TeamID   string
-	Name     string
-	Status   TeamStatus
-	Points   int
-	Levels   int
-	Elapsed  time.Duration // чистое время + штрафы
-	Finished bool
+	Rank     int           `json:"rank"`
+	TeamID   string        `json:"team_id"`
+	Name     string        `json:"name"`
+	Status   TeamStatus    `json:"status"`
+	Points   int           `json:"points"`
+	Levels   int           `json:"levels"`
+	Elapsed  time.Duration `json:"elapsed"` // чистое время + штрафы
+	Finished bool          `json:"finished"`
 }
 
 // Elapsed — время команды на момент now: от её старта до финиша (или now),
@@ -103,8 +103,10 @@ func (g *Game) Standings(now time.Time) []Standing {
 }
 
 // LeaderboardVisible — видит ли команда лидерборд сейчас.
+// Утверждённые итоги видны всем; до утверждения — по правилам сценария
+// и переключателю ведущего (в том числе после завершения игры).
 func (g *Game) LeaderboardVisible(teamID string) bool {
-	if g.Status == RunStatusFinished {
+	if g.Results != nil {
 		return true
 	}
 	if o := g.Leaderboard.Override; o != nil {
@@ -122,13 +124,32 @@ func (g *Game) LeaderboardVisible(teamID string) bool {
 }
 
 // LeaderboardFor — таблица для команды: (nil, false), если скрыта;
-// снимок на момент заморозки, если заморожена и игра не закончена.
+// утверждённые итоги, если они есть; снимок на момент заморозки,
+// если заморожена и игра не закончена.
 func (g *Game) LeaderboardFor(teamID string, now time.Time) ([]Standing, bool) {
 	if !g.LeaderboardVisible(teamID) {
 		return nil, false
+	}
+	if g.Results != nil {
+		return g.Results.Standings, true
 	}
 	if g.Leaderboard.Frozen && g.Status != RunStatusFinished {
 		return g.Leaderboard.Snapshot, true
 	}
 	return g.Standings(now), true
+}
+
+// ScoringRule — как распределяются места, одной фразой для игроков.
+func (g *Game) ScoringRule() string {
+	switch g.Scenario.Scoring.Mode {
+	case scenario.ScoringTime:
+		return "Места — по числу пройденных уровней; при равенстве выше тот, у кого меньше время " +
+			"(со старта команды плюс штрафные минуты за подсказки). Баллы на места не влияют."
+	case scenario.ScoringMixed:
+		return "Места — по баллам: за пройденные уровни и бонусы, минус штрафы. " +
+			"При равенстве баллов выше тот, у кого меньше время (со старта команды плюс штрафные минуты)."
+	default:
+		return "Места — по баллам: за пройденные уровни и бонусы, минус штрафы. " +
+			"При равенстве баллов выше тот, кто прошёл больше уровней."
+	}
 }

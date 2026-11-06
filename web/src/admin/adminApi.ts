@@ -1,6 +1,6 @@
 // API ведущего. Зеркало DTO из internal/httpapi (admin.go, views.go).
 
-import { ApiError, type Player, type Standing } from '../lib/api'
+import { ApiError, type Player, type ScoreItem, type Standing } from '../lib/api'
 
 export interface ScenarioVersion {
   id: string
@@ -51,6 +51,7 @@ export interface DashTeam {
   elapsed_sec: number
   levels_done: number
   last_activity?: string
+  score: ScoreItem[]
   current: LevelProgress[]
   levels: LevelProgress[]
 }
@@ -62,6 +63,8 @@ export interface Dashboard {
   registration: { open: boolean; max_teams: number }
   leaderboard: { visibility: string; override: boolean | null; frozen: boolean }
   pending_moderation: number
+  scoring_rule: string
+  results?: { at: string; message?: string; standings: Standing[] }
   teams: DashTeam[]
   withdrawn?: { id: string; name: string; players: Player[] }[]
   standings: Standing[]
@@ -152,6 +155,7 @@ export class AdminApi {
   dashboard = (run: string) => this.req<Dashboard>('GET', `/runs/${run}/dashboard`)
   start = (run: string) => this.req<Dashboard>('POST', `/runs/${run}/start`)
   finish = (run: string) => this.req<Dashboard>('POST', `/runs/${run}/finish`)
+  approveResults = (run: string, message: string) => this.req<Dashboard>('POST', `/runs/${run}/results`, { message })
   setRegistration = (run: string, open: boolean, max_teams: number) =>
     this.req<Dashboard>('PUT', `/runs/${run}/registration`, { open, max_teams })
   createTeam = (run: string, name: string, contact: string) =>

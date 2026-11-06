@@ -83,6 +83,12 @@ func (g *Game) Handle(now time.Time, cmd Command) (Outcome, error) {
 		} else {
 			t.emit("", "", "", Broadcast{Text: c.Text})
 		}
+	case ApproveResults:
+		if g.Status != RunStatusFinished {
+			err = ErrRunNotFinished
+		} else {
+			t.emit("", "host", "", ResultsApproved{Standings: g.Standings(now), Message: strings.TrimSpace(c.Message)})
+		}
 	case NoteScenarioChanged:
 		t.emit("", "host", "", ScenarioChanged{VersionID: c.VersionID, Slug: c.Slug, Version: c.Version})
 	case FinishRun:

@@ -75,6 +75,7 @@ type Game struct {
 
 	Leaderboard LeaderboardState
 	Messages    []Message
+	Results     *Results // утверждённые итоги; nil — ещё не утверждены
 
 	seq      int64
 	levelIdx map[string]int
@@ -106,6 +107,25 @@ type LeaderboardState struct {
 	Snapshot []Standing
 }
 
+// Results — итоги, утверждённые ведущим после завершения игры.
+type Results struct {
+	At        time.Time
+	Standings []Standing
+	Message   string
+}
+
+// ScoreEntry — строка расшифровки баллов команды.
+type ScoreEntry struct {
+	At      time.Time
+	Kind    string // level | bonus | hint | adjust
+	LevelID string
+	BonusID string
+	HintIdx int
+	Points  int
+	Time    time.Duration // штрафное (+) или компенсированное (−) время
+	Reason  string
+}
+
 type Message struct {
 	At   time.Time
 	Text string
@@ -134,7 +154,8 @@ type Team struct {
 	PenaltyTime   time.Duration
 	LevelsDone    int
 	LastActivity  time.Time
-	wrongAttempts []time.Time // для rate limit
+	Ledger        []ScoreEntry // откуда взялись баллы и штрафное время
+	wrongAttempts []time.Time  // для rate limit
 }
 
 type LevelState struct {
@@ -367,15 +388,21 @@ func (g *Game) Apply(e Event) {
 		t.Levels[p.LevelID].Hints[p.HintIdx] = true
 		t.PenaltyTime += p.PenaltyTime
 		t.Points -= p.PenaltyPoints
+		if p.PenaltyTime != 0 || p.PenaltyPoints != 0 {
+			t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "hint", LevelID: p.LevelID, HintIdx: p.HintIdx,
+				Points: -p.PenaltyPoints, Time: p.PenaltyTime})
+		}
 
 	case BonusCompleted:
 		t.Bonuses[p.BonusID] = true
 		t.Points += p.Points
+		t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "bonus", LevelID: p.LevelID, BonusID: p.BonusID, Points: p.Points})
 
 	case LevelCompleted:
 		t.Levels[p.LevelID].CompletedAt = e.At
 		t.Points += p.Points
 		t.LevelsDone++
+		t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "level", LevelID: p.LevelID, Points: p.Points})
 
 	case TeamFinished:
 		t.Status = TeamStatusFinished
@@ -386,8 +413,10 @@ func (g *Game) Apply(e Event) {
 		switch p.Action {
 		case OverrideAdjustTime:
 			t.PenaltyTime += p.Time
+			t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "adjust", Time: p.Time, Reason: p.Reason})
 		case OverrideAdjustPoints:
 			t.Points += p.Points
+			t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "adjust", Points: p.Points, Reason: p.Reason})
 		}
 
 	case LeaderboardVisibilitySet:
@@ -400,6 +429,9 @@ func (g *Game) Apply(e Event) {
 
 	case Broadcast:
 		g.Messages = append(g.Messages, Message{At: e.At, Text: p.Text})
+
+	case ResultsApproved:
+		g.Results = &Results{At: e.At, Standings: p.Standings, Message: p.Message}
 	}
 }
 

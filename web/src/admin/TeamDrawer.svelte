@@ -173,6 +173,26 @@
     </section>
   {/if}
 
+  <section>
+    <h3>Баллы ({team.points})</h3>
+    {#if team.score.length === 0}
+      <p class="muted small">Пока ничего.</p>
+    {:else}
+      <ul class="plain ledger">
+        {#each team.score as it, i (i)}
+          <li class="row">
+            <span class="grow small">{it.title}{#if it.reason} — <span class="muted">{it.reason}</span>{/if}</span>
+            <span class="mono small" class:minus={it.points < 0 || it.time_sec > 0}>
+              {it.points ? (it.points > 0 ? '+' : '−') + Math.abs(it.points) : ''}{it.points && it.time_sec ? ', ' : ''}{it.time_sec
+                ? (it.time_sec > 0 ? '+' : '−') + clock(Math.abs(it.time_sec))
+                : ''}
+            </span>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
+
   {#if playing}
     <section class="stack">
       <h3>Ввести код за команду</h3>
@@ -282,6 +302,17 @@
   }
   .plain li {
     padding: 0.2rem 0;
+  }
+  .ledger li {
+    border-top: 1px solid var(--line);
+    padding: 0.3rem 0;
+  }
+  .ledger .mono {
+    color: var(--ok);
+    white-space: nowrap;
+  }
+  .ledger .minus {
+    color: var(--bad);
   }
   .short {
     width: 7.5rem;

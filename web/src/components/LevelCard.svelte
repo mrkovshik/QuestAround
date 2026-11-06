@@ -93,7 +93,7 @@
       {#each level.hints as h (h.index)}
         {#if h.opened}
           <div class="hint"><strong>Подсказка {h.index + 1}.</strong> <span class="task">{h.text}</span></div>
-        {:else if level.open && !h.on_request && h.opens_at}
+        {:else if active && !h.on_request && h.opens_at}
           <div class="muted small">Подсказка {h.index + 1} откроется через {clock((Date.parse(h.opens_at) - live.now) / 1000)}</div>
         {:else if canRequest && h.on_request}
           <button class="secondary block" onclick={() => takeHint(h.index, h)}>

@@ -6,6 +6,8 @@
   import TeamPanel from '../components/TeamPanel.svelte'
   import Play from '../components/Play.svelte'
   import Leaderboard from '../components/Leaderboard.svelte'
+  import Score from '../components/Score.svelte'
+  import Congrats from '../components/Congrats.svelte'
 
   let { code, token, onLogout }: { code: string; token: string; onLogout: () => void } = $props()
 
@@ -69,10 +71,10 @@
       <div class="muted small">{s.title}</div>
     </div>
     {#if status === 'playing' || status === 'finished'}
-      <div class="stats">
+      <button class="stats" onclick={() => (tab = 'team')} title="Расшифровка баллов">
         <div class="big">{remaining !== null ? clock(remaining) : clock(live.elapsed())}</div>
         <div class="muted small">{points(s.points)} · {s.levels_done}/{s.levels_total}</div>
-      </div>
+      </button>
     {/if}
   </header>
 
@@ -108,19 +110,31 @@
           {/if}
         </div>
       {/if}
+      {#if !waiting}
+        <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} rule={s.scoring_rule} />
+      {/if}
       <TeamPanel {live} {logout} />
     {:else if tab === 'table'}
       <Leaderboard {live} />
     {:else if status === 'finished'}
-      <div class="card center">
-        <h2>Финиш!</h2>
-        <p>{points(s.points)} · уровней: {s.levels_done} из {s.levels_total} · время {clock(live.elapsed())}</p>
-        {#if s.leaderboard.visible}
-          <button class="secondary" onclick={() => (tab = 'table')}>Таблица результатов</button>
-        {:else}
-          <p class="muted small">Результаты объявит ведущий.</p>
-        {/if}
-      </div>
+      {#if s.results}
+        <Congrats results={s.results} team={s.team.name} />
+        <button class="secondary block" onclick={() => (tab = 'table')}>Итоговая таблица</button>
+      {:else}
+        <div class="card center">
+          <h2>Финиш!</h2>
+          <p>{points(s.points)} · уровней: {s.levels_done} из {s.levels_total} · время {clock(live.elapsed())}</p>
+          {#if s.run_status === 'finished'}
+            <p class="muted small">Ведущий подводит итоги — результат появится здесь, держите страницу открытой.</p>
+          {:else}
+            <p class="muted small">Ждём, пока финишируют остальные команды. Итоги появятся здесь.</p>
+          {/if}
+          {#if s.leaderboard.visible}
+            <button class="secondary" onclick={() => (tab = 'table')}>Предварительная таблица</button>
+          {/if}
+        </div>
+      {/if}
+      <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} rule={s.scoring_rule} />
       <Play {live} />
     {:else if status === 'withdrawn'}
       <div class="card"><p>Команда снята с игры.</p></div>
@@ -160,6 +174,11 @@
   }
   .stats {
     text-align: right;
+    background: transparent;
+    color: var(--text);
+    padding: 0;
+    min-height: 0;
+    font-weight: 400;
   }
   .big {
     font-size: 1.3rem;

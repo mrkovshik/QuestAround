@@ -63,6 +63,25 @@ export interface Message {
   text: string
 }
 
+export interface ScoreItem {
+  at: string
+  kind: 'level' | 'bonus' | 'hint' | 'adjust'
+  title: string
+  points: number
+  time_sec: number
+  reason?: string
+}
+
+export interface Results {
+  approved: boolean
+  at: string
+  message?: string
+  rank?: number
+  teams: number
+  points: number
+  elapsed_sec: number
+}
+
 export interface PlayerState {
   seq: number
   run_status: 'pending' | 'running' | 'finished'
@@ -82,7 +101,10 @@ export interface PlayerState {
   levels: Level[]
   messages: Message[]
   hint_requests: 'captain' | 'anyone'
-  leaderboard: { visible: boolean; frozen: boolean }
+  score: ScoreItem[]
+  scoring_rule: string
+  results?: Results
+  leaderboard: { visible: boolean; frozen: boolean; final: boolean }
 }
 
 export interface GameInfo {
@@ -179,7 +201,8 @@ export const api = {
   photo: (token: string, form: FormData) => request<AnswerResult>('POST', '/api/v1/photos', { token, form }),
   hint: (token: string, levelId: string, idx: number) =>
     request<void>('POST', `/api/v1/levels/${encodeURIComponent(levelId)}/hints/${idx}`, { token }),
-  leaderboard: (token: string) => request<{ frozen: boolean; standings: Standing[] }>('GET', '/api/v1/leaderboard', { token }),
+  leaderboard: (token: string) =>
+    request<{ frozen: boolean; final: boolean; rule: string; standings: Standing[] }>('GET', '/api/v1/leaderboard', { token }),
 
   renameTeam: (token: string, name: string) => request<Team>('PATCH', '/api/v1/team', { token, body: { name } }),
   removePlayer: (token: string, id: string) => request<Team>('DELETE', `/api/v1/team/players/${encodeURIComponent(id)}`, { token }),

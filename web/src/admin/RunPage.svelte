@@ -108,6 +108,13 @@
       {/if}
     </section>
 
+    {#if d.run_status === 'finished' && !d.results && tab !== 'table'}
+      <div class="card finbanner row wrap">
+        <span class="grow"><strong>Игра завершена.</strong> Проверьте таблицу и утвердите итоги — команды получат поздравления.</span>
+        <button onclick={() => (tab = 'table')}>К итогам</button>
+      </div>
+    {/if}
+
     <nav class="tabs">
       <button class:active={tab === 'dash'} onclick={() => (tab = 'dash')}>Команды</button>
       <button class:active={tab === 'reg'} onclick={() => (tab = 'reg')}>Регистрация</button>
@@ -149,6 +156,10 @@
   .code {
     letter-spacing: 0.08em;
     font-size: 1.05rem;
+  }
+  .finbanner {
+    border-color: var(--accent);
+    background: var(--accent-soft);
   }
   .qrbox {
     margin-top: 1rem;

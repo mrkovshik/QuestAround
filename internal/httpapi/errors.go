@@ -49,6 +49,7 @@ var errorTable = []struct {
 	{store.ErrNotFound, 404, "not_found"},
 	{core.ErrRunStarted, 409, "run_started"},
 	{core.ErrRunNotRunning, 409, "run_not_running"},
+	{core.ErrRunNotFinished, 409, "run_not_finished"},
 	{core.ErrNoTeams, 409, "no_teams"},
 	{core.ErrTeamExists, 409, "team_exists"},
 	{core.ErrTeamNotPlaying, 409, "team_not_playing"},

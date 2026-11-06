@@ -91,6 +91,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/v1/runs/{run}/teams/{team}/answers", a(s.hostSubmitAnswer))
 	mux.Handle("POST /admin/v1/runs/{run}/start", a(s.startRun))
 	mux.Handle("POST /admin/v1/runs/{run}/finish", a(s.finishRun))
+	mux.Handle("POST /admin/v1/runs/{run}/results", a(s.approveResults))
 	mux.Handle("GET /admin/v1/runs/{run}/dashboard", a(s.dashboard))
 	mux.Handle("GET /admin/v1/runs/{run}/stream", a(s.adminStream))
 	mux.Handle("GET /admin/v1/runs/{run}/moderation", a(s.moderationQueue))
