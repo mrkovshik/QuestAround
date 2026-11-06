@@ -1,6 +1,8 @@
 // API ведущего. Зеркало DTO из internal/httpapi (admin.go, views.go).
 
-import { ApiError, type Player, type ScoreItem, type Standing } from '../lib/api'
+import { ApiError, type ChatMsg, type Player, type ScoreItem, type Sos, type Standing } from '../lib/api'
+
+export type { ChatMsg, Sos }
 
 export interface ScenarioVersion {
   id: string
@@ -52,6 +54,7 @@ export interface DashTeam {
   levels_done: number
   last_activity?: string
   score: ScoreItem[]
+  chat: ChatMsg[]
   current: LevelProgress[]
   levels: LevelProgress[]
 }
@@ -64,6 +67,8 @@ export interface Dashboard {
   leaderboard: { visibility: string; override: boolean | null; frozen: boolean }
   pending_moderation: number
   scoring_rule: string
+  host_contact: string
+  sos: Sos[]
   results?: { at: string; message?: string; standings: Standing[] }
   teams: DashTeam[]
   withdrawn?: { id: string; name: string; players: Player[] }[]
@@ -174,6 +179,10 @@ export class AdminApi {
   moderate = (run: string, seq: number, approved: boolean, comment = '') =>
     this.req<ModerationItem[]>('POST', `/runs/${run}/moderation/${seq}`, { approved, comment })
   setLeaderboard = (run: string, visible: boolean | null) => this.req<Dashboard>('PUT', `/runs/${run}/leaderboard`, { visible })
+  teamChat = (run: string, team: string, text: string) =>
+    this.req<Dashboard>('POST', `/runs/${run}/teams/${team}/chat`, { text })
+  resolveSOS = (run: string, seq: number, note: string) => this.req<Dashboard>('POST', `/runs/${run}/sos/${seq}/resolve`, { note })
+  setHostContact = (run: string, text: string) => this.req<Dashboard>('PUT', `/runs/${run}/contact`, { text })
   broadcast = (run: string, text: string) => this.req<Dashboard>('POST', `/runs/${run}/broadcast`, { text })
   events = (run: string) => this.req<JournalEvent[]>('GET', `/runs/${run}/events`)
 

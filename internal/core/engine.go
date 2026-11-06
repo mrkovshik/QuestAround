@@ -46,6 +46,12 @@ func (g *Game) Handle(now time.Time, cmd Command) (Outcome, error) {
 		ans *AnswerResult
 		err error
 	)
+	if handled, herr := g.handleComms(t, cmd); handled {
+		if herr != nil {
+			return Outcome{}, herr
+		}
+		return Outcome{Events: t.out}, nil
+	}
 	switch c := cmd.(type) {
 	case RegisterTeam:
 		err = g.registerTeam(t, c)

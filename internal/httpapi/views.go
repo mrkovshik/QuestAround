@@ -283,6 +283,9 @@ type playerStateDTO struct {
 	Score        []scoreItemDTO `json:"score"`
 	ScoringRule  string         `json:"scoring_rule"`
 	Results      *resultsDTO    `json:"results,omitempty"`
+	Chat         []chatDTO      `json:"chat"`
+	SOS          []sosDTO       `json:"sos"`
+	HostContact  string         `json:"host_contact,omitempty"`
 	Leaderboard  struct {
 		Visible bool `json:"visible"`
 		Frozen  bool `json:"frozen"`
@@ -304,6 +307,9 @@ func playerStateView(g *core.Game, title, playerID string, team *core.Team, now 
 		Score:        ledgerView(g, team),
 		ScoringRule:  g.ScoringRule(),
 		Results:      resultsFor(g, team.ID),
+		Chat:         chatView(g, team),
+		SOS:          sosForTeam(g, team.ID),
+		HostContact:  g.HostContact,
 	}
 	if team.Status == core.TeamStatusScheduled {
 		d.StartAt = timePtr(team.ScheduledAt)
@@ -345,6 +351,7 @@ type dashTeamDTO struct {
 	LevelsDone   int               `json:"levels_done"`
 	LastActivity *time.Time        `json:"last_activity,omitempty"`
 	Score        []scoreItemDTO    `json:"score"`
+	Chat         []chatDTO         `json:"chat"`
 	Current      []currentLevelDTO `json:"current"` // открытые сейчас
 	Levels       []currentLevelDTO `json:"levels"`  // все открытые когда-либо, по времени открытия
 }
@@ -362,8 +369,10 @@ type dashboardDTO struct {
 		Override   *bool  `json:"override"`
 		Frozen     bool   `json:"frozen"`
 	} `json:"leaderboard"`
-	PendingModeration int    `json:"pending_moderation"`
-	ScoringRule       string `json:"scoring_rule"`
+	PendingModeration int      `json:"pending_moderation"`
+	ScoringRule       string   `json:"scoring_rule"`
+	HostContact       string   `json:"host_contact"`
+	SOS               []sosDTO `json:"sos"` // все сигналы, новые сверху
 	Results           *struct {
 		At        time.Time     `json:"at"`
 		Message   string        `json:"message,omitempty"`
@@ -382,7 +391,12 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 		Standings:         standingsDTO(g.Standings(now)),
 		Messages:          messagesDTO(g.Messages),
 		ScoringRule:       g.ScoringRule(),
+		HostContact:       g.HostContact,
+		SOS:               []sosDTO{},
 		Teams:             []dashTeamDTO{},
+	}
+	for i := len(g.SOS) - 1; i >= 0; i-- {
+		d.SOS = append(d.SOS, sosView(g, g.SOS[i]))
 	}
 	if r := g.Results; r != nil {
 		d.Results = &struct {
@@ -409,7 +423,7 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 			FinishReason: t.FinishReason, Route: t.Route, Points: t.Points,
 			PenaltySec: int64(t.PenaltyTime / time.Second), ElapsedSec: int64(g.Elapsed(t, now) / time.Second),
 			LevelsDone: t.LevelsDone, LastActivity: timePtr(t.LastActivity),
-			Current: []currentLevelDTO{}, Levels: []currentLevelDTO{}, Score: ledgerView(g, t),
+			Current: []currentLevelDTO{}, Levels: []currentLevelDTO{}, Score: ledgerView(g, t), Chat: chatView(g, t),
 		}
 		if dt.Players == nil {
 			dt.Players = []playerDTO{}

@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -266,60 +267,12 @@ func DecodePayload(t EventType, data []byte) (Payload, error) {
 	return deref(p), nil
 }
 
+// deref: фабрики возвращают указатели (для json.Unmarshal), а payload
+// в событиях хранится по значению — Apply сопоставляет типы-значения.
 func deref(p Payload) Payload {
-	switch v := p.(type) {
-	case *RunStarted:
-		return *v
-	case *RunFinished:
-		return *v
-	case *TeamRegistered:
-		return *v
-	case *PlayerJoined:
-		return *v
-	case *PlayerRemoved:
-		return *v
-	case *CaptainChanged:
-		return *v
-	case *InviteRotated:
-		return *v
-	case *TeamRenamed:
-		return *v
-	case *TeamWithdrawn:
-		return *v
-	case *RegistrationSet:
-		return *v
-	case *TeamStartScheduled:
-		return *v
-	case *RouteAssigned:
-		return *v
-	case *TeamStarted:
-		return *v
-	case *LevelOpened:
-		return *v
-	case *AnswerSubmitted:
-		return *v
-	case *ModerationResolved:
-		return *v
-	case *HintOpened:
-		return *v
-	case *BonusCompleted:
-		return *v
-	case *LevelCompleted:
-		return *v
-	case *TeamFinished:
-		return *v
-	case *AdminOverride:
-		return *v
-	case *LeaderboardVisibilitySet:
-		return *v
-	case *LeaderboardFrozen:
-		return *v
-	case *Broadcast:
-		return *v
-	case *ScenarioChanged:
-		return *v
-	case *ResultsApproved:
-		return *v
+	v := reflect.ValueOf(p)
+	if v.Kind() == reflect.Pointer {
+		return v.Elem().Interface().(Payload)
 	}
 	return p
 }

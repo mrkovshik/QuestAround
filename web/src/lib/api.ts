@@ -82,6 +82,30 @@ export interface Results {
   elapsed_sec: number
 }
 
+export interface ChatMsg {
+  seq: number
+  at: string
+  from_host: boolean
+  author: string
+  text: string
+}
+
+export interface Sos {
+  seq: number
+  at: string
+  team_id: string
+  team_name: string
+  player_name: string
+  contact?: string
+  lat?: number
+  lng?: number
+  accuracy?: number
+  text?: string
+  resolved_at?: string
+  note?: string
+  current_level?: string
+}
+
 export interface PlayerState {
   seq: number
   run_status: 'pending' | 'running' | 'finished'
@@ -104,6 +128,9 @@ export interface PlayerState {
   score: ScoreItem[]
   scoring_rule: string
   results?: Results
+  chat: ChatMsg[]
+  sos: Sos[]
+  host_contact?: string
   leaderboard: { visible: boolean; frozen: boolean; final: boolean }
 }
 
@@ -203,6 +230,10 @@ export const api = {
     request<void>('POST', `/api/v1/levels/${encodeURIComponent(levelId)}/hints/${idx}`, { token }),
   leaderboard: (token: string) =>
     request<{ frozen: boolean; final: boolean; rule: string; standings: Standing[] }>('GET', '/api/v1/leaderboard', { token }),
+
+  chat: (token: string, text: string) => request<void>('POST', '/api/v1/chat', { token, body: { text } }),
+  sos: (token: string, body: { lat?: number; lng?: number; accuracy?: number; text: string }) =>
+    request<{ seq: number }>('POST', '/api/v1/sos', { token, body }),
 
   renameTeam: (token: string, name: string) => request<Team>('PATCH', '/api/v1/team', { token, body: { name } }),
   removePlayer: (token: string, id: string) => request<Team>('DELETE', `/api/v1/team/players/${encodeURIComponent(id)}`, { token }),

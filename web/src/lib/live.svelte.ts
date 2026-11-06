@@ -35,6 +35,9 @@ export class Live {
   /** Токен больше не действует (игрока удалили) — надо войти заново. */
   unauthorized = $state(false)
 
+  /** Момент, до которого игрок прочитал сообщения ведущего (мс). */
+  lastRead = $state(0)
+
   private fetchedAt = 0
   private es: EventSource | null = null
   private refreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -43,7 +46,77 @@ export class Live {
   constructor(
     public code: string,
     public token: string,
-  ) {}
+  ) {
+    try {
+      this.lastRead = Number(localStorage.getItem(`qa:read:${code}`) ?? 0)
+    } catch {
+      /* без localStorage — всё будет «непрочитанным» до первого «Прочитано» */
+    }
+  }
+
+  /** Непрочитанные сообщения ведущего: общие и в канал команды, старые сверху. */
+  unread(): { at: string; text: string; personal: boolean }[] {
+    const s = this.state
+    if (!s) return []
+    const all = [
+      ...s.messages.map((m) => ({ at: m.at, text: m.text, personal: false })),
+      ...s.chat.filter((m) => m.from_host).map((m) => ({ at: m.at, text: m.text, personal: true })),
+    ]
+    return all.filter((m) => Date.parse(m.at) > this.lastRead).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  }
+
+  markRead() {
+    const items = this.unread()
+    if (!items.length) return
+    this.lastRead = Math.max(...items.map((m) => Date.parse(m.at)))
+    try {
+      localStorage.setItem(`qa:read:${this.code}`, String(this.lastRead))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async sendChat(text: string): Promise<boolean> {
+    try {
+      await api.chat(this.token, text)
+      this.scheduleRefresh()
+      return true
+    } catch (e) {
+      if (isNetworkError(e)) this.toast('bad', 'Нет связи — сообщение не отправлено')
+      else this.announceError(e as ApiError)
+      return false
+    }
+  }
+
+  /** Сигнал тревоги: координаты, если телефон быстро их отдаст, и текст. */
+  async raiseSOS(text: string): Promise<boolean> {
+    this.busy = true
+    let coords: GeolocationCoordinates | null = null
+    try {
+      coords = await new Promise<GeolocationCoordinates | null>((resolve) => {
+        if (!('geolocation' in navigator)) return resolve(null)
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve(p.coords),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
+        )
+      })
+      await api.sos(this.token, {
+        text,
+        ...(coords ? { lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy } : {}),
+      })
+      if (navigator.vibrate) navigator.vibrate([100, 60, 100])
+      this.toast('ok', coords ? 'Сигнал и координаты отправлены ведущему' : 'Сигнал отправлен (без координат)', 5000)
+      this.scheduleRefresh()
+      return true
+    } catch (e) {
+      const contact = this.state?.host_contact
+      this.toast('bad', `Не удалось отправить сигнал.${contact ? ' Звоните ведущему: ' + contact : ' Звоните ведущему.'}`, 12000)
+      return false
+    } finally {
+      this.busy = false
+    }
+  }
 
   /** Запуск; возвращает функцию остановки. */
   start(): () => void {
@@ -140,7 +213,7 @@ export class Live {
     if (navigator.vibrate && r.result === 'correct') navigator.vibrate(80)
   }
 
-  private announceError(e: ApiError) {
+  announceError(e: ApiError) {
     this.toast('bad', e.message, 5000)
   }
 

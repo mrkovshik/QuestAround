@@ -8,6 +8,7 @@
   import Leaderboard from '../components/Leaderboard.svelte'
   import Score from '../components/Score.svelte'
   import Congrats from '../components/Congrats.svelte'
+  import Comms from '../components/Comms.svelte'
 
   let { code, token, onLogout }: { code: string; token: string; onLogout: () => void } = $props()
 
@@ -16,7 +17,7 @@
   const live = new Live(code, token)
   $effect(() => live.start())
 
-  let tab = $state<'play' | 'team' | 'table'>('play')
+  let tab = $state<'play' | 'team' | 'comms' | 'table'>('play')
 
   function logout() {
     clearToken(code)
@@ -36,15 +37,9 @@
   })
   const startIn = $derived(s?.start_at ? Math.floor((Date.parse(s.start_at) - live.now) / 1000) : null)
 
-  // Последнее сообщение ведущего, пока игрок его не закрыл.
-  // svelte-ignore state_referenced_locally
-  let dismissed = $state(Number(localStorage.getItem(`qa:msg:${code}`) ?? 0))
-  const lastMsg = $derived(s?.messages.at(-1))
-  const showMsg = $derived(!!lastMsg && Date.parse(lastMsg.at) > dismissed)
-  function dismissMsg() {
-    dismissed = Date.parse(lastMsg!.at)
-    localStorage.setItem(`qa:msg:${code}`, String(dismissed))
-  }
+  // Непрочитанные сообщения ведущего (общие и в канал команды) — лентой, пока не отмечены.
+  const unread = $derived(live.state ? live.unread() : [])
+  const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
   $effect(() => {
     if (tab === 'table' && s && !s.leaderboard.visible) tab = 'play'
@@ -86,17 +81,27 @@
   {/if}
 
   <main class="page">
-    {#if showMsg && lastMsg}
+    {#if unread.length && tab !== 'comms'}
       <div class="card msg">
         <div class="row">
-          <strong class="grow">Сообщение ведущего</strong>
-          <button class="ghost small" onclick={dismissMsg}>Скрыть</button>
+          <strong class="grow">{unread.length === 1 ? 'Сообщение ведущего' : `Новые сообщения ведущего: ${unread.length}`}</strong>
+          <button class="ghost small" onclick={() => live.markRead()}>Прочитано</button>
         </div>
-        <p class="task">{lastMsg.text}</p>
+        {#each unread as m, i (i)}
+          <div class="um">
+            <span class="small muted">{hhmm(m.at)}{m.personal ? ' · вашей команде' : ''}</span>
+            <p class="task">{m.text}</p>
+          </div>
+        {/each}
+        {#if unread.some((m) => m.personal)}
+          <button class="ghost small" onclick={() => (tab = 'comms')}>Ответить</button>
+        {/if}
       </div>
     {/if}
 
-    {#if tab === 'team' || waiting}
+    {#if tab === 'comms'}
+      <Comms {live} />
+    {:else if tab === 'team' || waiting}
       {#if waiting}
         <div class="card center wait">
           {#if status === 'scheduled' && startIn !== null && startIn > 0}
@@ -143,15 +148,18 @@
     {/if}
   </main>
 
-  {#if !waiting}
-    <nav class="tabs">
-      <button class:active={tab === 'play'} onclick={() => (tab = 'play')}>Задание</button>
+  <nav class="tabs">
+    <button class:active={tab === 'play'} onclick={() => (tab = 'play')}>{waiting ? 'Старт' : 'Задание'}</button>
+    {#if !waiting}
       <button class:active={tab === 'team'} onclick={() => (tab = 'team')}>Команда</button>
-      {#if s.leaderboard.visible}
-        <button class:active={tab === 'table'} onclick={() => (tab = 'table')}>Таблица</button>
-      {/if}
-    </nav>
-  {/if}
+    {/if}
+    <button class:active={tab === 'comms'} onclick={() => (tab = 'comms')}>
+      Связь{#if unread.length}<span class="dot">{unread.length}</span>{/if}
+    </button>
+    {#if s.leaderboard.visible}
+      <button class:active={tab === 'table'} onclick={() => (tab = 'table')}>Таблица</button>
+    {/if}
+  </nav>
 {/if}
 
 <style>
@@ -196,6 +204,20 @@
   }
   .msg {
     border-color: var(--accent);
+  }
+  .um p {
+    margin: 0.1rem 0 0.5rem;
+  }
+  .dot {
+    display: inline-block;
+    min-width: 1.3em;
+    margin-left: 0.3em;
+    padding: 0 0.3em;
+    border-radius: 999px;
+    background: var(--bad);
+    color: #fff;
+    font-size: 0.75rem;
+    line-height: 1.3em;
   }
   .wait {
     padding: 1.5rem 1rem;

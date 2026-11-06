@@ -11,6 +11,8 @@
   import Journal from './Journal.svelte'
   import TeamDrawer from './TeamDrawer.svelte'
   import ScenarioPanel from './ScenarioPanel.svelte'
+  import SosBanner from './SosBanner.svelte'
+  import Comms from './Comms.svelte'
 
   let { api, runId, onUnauthorized }: { api: AdminApi; runId: string; onUnauthorized: () => void } = $props()
 
@@ -18,7 +20,8 @@
   const live = new RunLive(api, runId)
   $effect(() => live.start())
 
-  let tab = $state<'dash' | 'reg' | 'mod' | 'table' | 'log'>('dash')
+  let tab = $state<'dash' | 'reg' | 'mod' | 'comms' | 'table' | 'log'>('dash')
+  let chatTeam = $state<string | null>(null)
   let teamId = $state<string | null>(null)
   let showQR = $state(false)
   let message = $state('')
@@ -27,6 +30,24 @@
   const run = $derived(live.run)
   const gameUrl = $derived(run ? `${location.origin}/g/${run.public_code}` : '')
   const team = $derived(d?.teams.find((t) => t.id === teamId) ?? null)
+
+  // Непрочитанные от капитанов — для счётчика на вкладке (та же метка, что и во вкладке «Связь»).
+  const chatUnread = $derived.by(() => {
+    if (!d) return 0
+    void d.seq
+    let seen: Record<string, number> = {}
+    try {
+      seen = JSON.parse(localStorage.getItem(`qa:admin:seen:${runId}`) ?? '{}')
+    } catch {
+      /* ignore */
+    }
+    return d.teams.reduce((n, t) => n + t.chat.filter((m) => !m.from_host && m.seq > (seen[t.id] ?? 0)).length, 0)
+  })
+
+  function openChat(id: string) {
+    chatTeam = id
+    tab = 'comms'
+  }
 
   $effect(() => {
     if (live.error && /авторизац/i.test(live.error)) onUnauthorized()
@@ -108,6 +129,8 @@
       {/if}
     </section>
 
+    <SosBanner {live} {runId} onOpen={openChat} />
+
     {#if d.run_status === 'finished' && !d.results && tab !== 'table'}
       <div class="card finbanner row wrap">
         <span class="grow"><strong>Игра завершена.</strong> Проверьте таблицу и утвердите итоги — команды получат поздравления.</span>
@@ -121,6 +144,9 @@
       <button class:active={tab === 'mod'} onclick={() => (tab = 'mod')}>
         Модерация{#if live.queue.length}<span class="counter">{live.queue.length}</span>{/if}
       </button>
+      <button class:active={tab === 'comms'} onclick={() => (tab = 'comms')}>
+        Связь{#if chatUnread && tab !== 'comms'}<span class="counter">{chatUnread}</span>{/if}
+      </button>
       <button class:active={tab === 'table'} onclick={() => (tab = 'table')}>Таблица</button>
       <button class:active={tab === 'log'} onclick={() => (tab = 'log')}>Журнал</button>
     </nav>
@@ -131,6 +157,8 @@
       <Registration {live} {runId} code={run.public_code} onOpen={(id) => (teamId = id)} />
     {:else if tab === 'mod'}
       <Moderation {live} {runId} />
+    {:else if tab === 'comms'}
+      <Comms {live} {runId} bind:teamId={chatTeam} />
     {:else if tab === 'table'}
       <Standings {live} {runId} />
     {:else}

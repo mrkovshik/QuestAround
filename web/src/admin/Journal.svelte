@@ -37,6 +37,10 @@
     broadcast: 'Сообщение всем',
     scenario_changed: 'Замена сценария',
     results_approved: 'Итоги утверждены',
+    chat_posted: 'Чат',
+    sos_raised: 'ТРЕВОГА',
+    sos_resolved: 'Тревога принята',
+    host_contact_set: 'Контакт ведущего',
   }
   const ACTION: Record<string, string> = {
     complete_level: 'засчитан уровень',
@@ -107,6 +111,15 @@
           .join(', ') + (p.message ? ` — «${p.message}»` : '')
       case 'scenario_changed':
         return `${p.slug}, версия ${p.version}`
+      case 'chat_posted':
+        return (p.from_host ? 'ведущий: ' : '') + p.text
+      case 'sos_raised':
+        return [p.text, p.lat != null ? `${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}` : 'без координат'].filter(Boolean).join(' · ')
+      case 'sos_resolved':
+        return `#${p.ref}` + (p.note ? ` — ${p.note}` : '')
+      case 'host_contact_set':
+        return p.text || 'убран'
+
       case 'leaderboard_visibility_set':
         return p.visible === null ? 'по сценарию' : p.visible ? 'показана' : 'скрыта'
       default:

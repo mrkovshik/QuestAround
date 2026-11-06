@@ -76,6 +76,8 @@ type Game struct {
 	Leaderboard LeaderboardState
 	Messages    []Message
 	Results     *Results // утверждённые итоги; nil — ещё не утверждены
+	SOS         []*SOSAlert
+	HostContact string
 
 	seq      int64
 	levelIdx map[string]int
@@ -155,7 +157,8 @@ type Team struct {
 	LevelsDone    int
 	LastActivity  time.Time
 	Ledger        []ScoreEntry // откуда взялись баллы и штрафное время
-	wrongAttempts []time.Time  // для rate limit
+	Chat          []ChatMessage
+	wrongAttempts []time.Time // для rate limit
 }
 
 type LevelState struct {
@@ -245,6 +248,9 @@ func Replay(runID string, sc *scenario.Scenario, seed uint64, events []Event) *G
 // события — уже свершившиеся факты, проверки делаются при их создании.
 func (g *Game) Apply(e Event) {
 	g.seq = e.Seq
+	if g.applyComms(e) {
+		return
+	}
 	t := g.Teams[e.TeamID]
 
 	switch p := e.Payload.(type) {
