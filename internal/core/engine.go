@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -343,6 +344,21 @@ func (g *Game) matchCode(team *Team, levels []string, value string, p *AnswerSub
 
 func (g *Game) matchGeo(team *Team, levels []string, c SubmitAnswer, p *AnswerSubmitted) {
 	inaccurate := false
+	nearest := -1.0
+	measure := func(a scenario.Answer) {
+		if len(a.Point) != 2 {
+			return
+		}
+		if d := Distance(c.Lat, c.Lng, a.Point[0], a.Point[1]); nearest < 0 || d < nearest {
+			nearest = d
+		}
+	}
+	defer func() {
+		if nearest >= 0 {
+			m := int(math.Round(nearest))
+			p.DistanceM = &m
+		}
+	}()
 	for _, id := range levels {
 		ls := team.Levels[id]
 		if !ls.IsOpen() {
@@ -353,6 +369,7 @@ func (g *Game) matchGeo(team *Team, levels []string, c SubmitAnswer, p *AnswerSu
 			if a.Type != scenario.AnswerGeo || ls.Solved[i] {
 				continue
 			}
+			measure(a)
 			switch matchGeo(a, c.Lat, c.Lng, c.Accuracy) {
 			case geoHit:
 				p.Result, p.LevelID, p.AnswerIdx = ResultCorrect, id, ptr(i)
@@ -368,6 +385,7 @@ func (g *Game) matchGeo(team *Team, levels []string, c SubmitAnswer, p *AnswerSu
 			if b.Answer.Type != scenario.AnswerGeo || team.Bonuses[b.ID] {
 				continue
 			}
+			measure(b.Answer)
 			switch matchGeo(b.Answer, c.Lat, c.Lng, c.Accuracy) {
 			case geoHit:
 				p.Result, p.LevelID, p.BonusID = ResultCorrect, id, b.ID

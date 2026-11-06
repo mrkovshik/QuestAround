@@ -66,6 +66,10 @@ func TestLinearHappyPath(t *testing.T) {
 		return h.do(SubmitAnswer{TeamID: "a", Kind: KindGeo, Lat: lat, Lng: lng, Accuracy: acc}).Answer.Result
 	}
 	h.eq("далеко", geo(44.64, 39.14, 10), ResultWrong)
+	far := h.log[len(h.log)-1].Payload.(AnswerSubmitted).DistanceM
+	if far == nil || *far < 700 || *far > 900 {
+		t.Errorf("расстояние до точки: %v", far)
+	}
 	h.eq("плохой GPS", geo(44.6338, 39.1352, 120), ResultInaccurate)
 	h.eq("на месте", geo(44.63385, 39.13525, 10), ResultCorrect)
 

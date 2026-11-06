@@ -70,7 +70,9 @@
     const p = e.payload as Record<string, any>
     switch (e.type) {
       case 'answer_submitted': {
-        const what = p.kind === 'photo' ? 'фото' : p.kind === 'geo' ? `гео ±${Math.round(p.accuracy ?? 0)} м` : `«${p.value}»`
+        const dist = typeof p.distance_m === 'number' ? `, до точки ${p.distance_m.toLocaleString('ru-RU')} м` : ''
+        const what =
+          p.kind === 'photo' ? 'фото' : p.kind === 'geo' ? `гео ±${Math.round(p.accuracy ?? 0)} м${dist}` : `«${p.value}»`
         const res: Record<string, string> = { correct: 'верно', wrong: 'неверно', duplicate: 'повтор', pending: 'на проверку', inaccurate: 'GPS неточный' }
         return `${what} → ${res[p.result] ?? p.result}${p.level_id ? ` (${p.level_id})` : ''}`
       }

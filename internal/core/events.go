@@ -120,6 +120,9 @@ type AnswerSubmitted struct {
 	Lng      float64    `json:"lng,omitempty"`
 	Accuracy float64    `json:"accuracy,omitempty"`
 	MediaKey string     `json:"media_key,omitempty"`
+	// DistanceM — для гео: расстояние до ближайшей незасчитанной гео-точки
+	// (для разбора ведущим; игрокам не показывается). nil — точек не было.
+	DistanceM *int `json:"distance_m,omitempty"`
 
 	Result Result `json:"result"`
 	// Что именно совпало (для correct/duplicate/pending):
