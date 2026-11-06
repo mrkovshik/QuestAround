@@ -44,7 +44,9 @@
     uploadMsg = null
     try {
       const sv = await api.uploadScenario(yaml)
-      uploadMsg = `Загружено: «${sv.title}» — ${sv.slug}, версия ${sv.version}`
+      uploadMsg =
+        `Загружено: «${sv.title}» — ${sv.slug}, версия ${sv.version}.` +
+        (sv.version > 1 ? ' Чтобы применить её к уже созданной игре, откройте игру и нажмите «Заменить» у сценария.' : '')
       await load()
       versionId = sv.id
       title = title || sv.title || ''

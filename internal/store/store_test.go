@@ -213,6 +213,18 @@ func TestScenarioVersionsAndRuns(t *testing.T) {
 		if err != nil || len(runs) == 0 {
 			t.Errorf("ListRuns: %v, %v", runs, err)
 		}
+		if err := s.SetRunScenario(ctx, r.ID, v1.ID); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := s.GetRun(ctx, r.ID); got.ScenarioVersionID != v1.ID {
+			t.Errorf("сценарий игры не сменился: %s", got.ScenarioVersionID)
+		}
+		if err := s.SetRunScenario(ctx, r.ID, "nope"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("несуществующая версия: %v", err)
+		}
+		if err := s.SetRunScenario(ctx, "nope", v1.ID); !errors.Is(err, ErrNotFound) {
+			t.Errorf("несуществующая игра: %v", err)
+		}
 		if _, err := s.CreateRun(ctx, NewRun{OrgID: DefaultOrg, ScenarioVersionID: "nope"}); !errors.Is(err, ErrNotFound) {
 			t.Errorf("run без сценария: ожидали ErrNotFound, получили %v", err)
 		}

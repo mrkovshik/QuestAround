@@ -81,6 +81,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/v1/runs", a(s.createRun))
 	mux.Handle("GET /admin/v1/runs", a(s.listRuns))
 	mux.Handle("GET /admin/v1/runs/{run}", a(s.getRun))
+	mux.Handle("PUT /admin/v1/runs/{run}/scenario", a(s.changeScenario))
 	mux.Handle("PUT /admin/v1/runs/{run}/registration", a(s.setRegistration))
 	mux.Handle("POST /admin/v1/runs/{run}/teams", a(s.hostCreateTeam))
 	mux.Handle("PATCH /admin/v1/runs/{run}/teams/{team}", a(s.hostRenameTeam))

@@ -449,3 +449,42 @@ func TestRegistrationLimits(t *testing.T) {
 }
 
 func itoa64(v int64) string { return strconv.FormatInt(v, 10) }
+
+func TestChangeScenarioBeforeStart(t *testing.T) {
+	ts := newTestServer(t)
+	var v1, v2 scenarioVersionDTO
+	ts.must(201, "POST", "/admin/v1/scenarios", adminToken, e2eYAML).json(t, &v1)
+	var run runDTO
+	ts.must(201, "POST", "/admin/v1/runs", adminToken, map[string]string{"scenario_version_id": v1.ID}).json(t, &run)
+	admin := "/admin/v1/runs/" + run.ID
+
+	// Команда успела зарегистрироваться по анонсу.
+	var cred credentialsDTO
+	ts.must(201, "POST", "/api/v1/games/"+run.PublicCode+"/teams", "", map[string]string{"team_name": "Ранние", "captain_name": "К"}).json(t, &cred)
+
+	// Ведущий поправил сценарий и заменил его в игре.
+	fixed := strings.Replace(e2eYAML, "Найдите год", "Найдите год основания", 1)
+	ts.must(201, "POST", "/admin/v1/scenarios", adminToken, fixed).json(t, &v2)
+	if v2.Version != 2 {
+		t.Fatalf("версия %d", v2.Version)
+	}
+	ts.must(404, "PUT", admin+"/scenario", adminToken, map[string]string{"scenario_version_id": "nope"})
+	ts.must(200, "PUT", admin+"/scenario", adminToken, map[string]string{"scenario_version_id": v2.ID}).json(t, &run)
+	if run.ScenarioVersionID != v2.ID || run.Teams != 1 {
+		t.Fatalf("после замены: %+v", run)
+	}
+
+	// Токен капитана работает, команда на месте, задание — из новой версии.
+	ts.must(200, "POST", admin+"/start", adminToken, nil)
+	var st playerStateDTO
+	ts.must(200, "GET", "/api/v1/state", cred.Token, nil).json(t, &st)
+	if len(st.Levels) == 0 || st.Levels[0].Task != "Найдите год основания" {
+		t.Fatalf("задание: %+v", st.Levels)
+	}
+
+	// После старта менять нельзя.
+	if c := ts.must(409, "PUT", admin+"/scenario", adminToken, map[string]string{"scenario_version_id": v1.ID}).errCode(t); c != "run_started" {
+		t.Fatalf("код %s", c)
+	}
+	ts.must(200, "GET", "/api/v1/state", cred.Token, nil) // игра после отказа продолжает работать
+}

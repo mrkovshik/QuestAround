@@ -146,7 +146,7 @@ web/                      PWA игрока: Svelte 5 + Vite + TypeScript
 ### API ведущего (`/admin/v1`)
 
 `POST /scenarios` (тело — YAML), `GET /scenarios/{id}`, `POST/GET /runs`, `GET /runs/{id}`,
-`PUT /runs/{id}/registration`, `POST /runs/{id}/teams`, `PATCH /runs/{id}/teams/{tid}`,
+`PUT /runs/{id}/scenario` (до старта), `PUT /runs/{id}/registration`, `POST /runs/{id}/teams`, `PATCH /runs/{id}/teams/{tid}`,
 `POST /runs/{id}/teams/{tid}/{start,withdraw,override,answers}`, `POST /runs/{id}/{start,finish,broadcast}`,
 `GET /runs/{id}/{dashboard,stream,moderation,events}`, `POST /runs/{id}/moderation/{seq}`,
 `PUT /runs/{id}/leaderboard`, `GET /media/{key}`.
@@ -166,6 +166,7 @@ web/                      PWA игрока: Svelte 5 + Vite + TypeScript
 **Админка ведущего** (`/admin`, вход по `QUESTAROUND_ADMIN_TOKEN`)
 - Игры и сценарии: загрузка YAML (файлом или вставкой) с ошибками по строкам, версии, создание игры.
 - Шапка игры: статус, код и ссылка, QR для афиши, «открыть как игрок», старт/завершение, сообщение всем.
+- Сценарий игры: просмотр YAML; **до старта** — замена на другую версию (код игры, команды и игроки сохраняются).
 - **Команды**: живая таблица — текущий уровень, сколько на нём (красным > 25 мин), секторы, подсказки,
   баллы, время со штрафами, активность (оранжевым — тишина > 10 мин); сортировка по прогрессу / «залипанию».
 - **Карточка команды**: состав и контакт, история уровней с временем, ввод кода за команду,

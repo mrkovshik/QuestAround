@@ -10,6 +10,7 @@
   import Standings from './Standings.svelte'
   import Journal from './Journal.svelte'
   import TeamDrawer from './TeamDrawer.svelte'
+  import ScenarioPanel from './ScenarioPanel.svelte'
 
   let { api, runId, onUnauthorized }: { api: AdminApi; runId: string; onUnauthorized: () => void } = $props()
 
@@ -98,6 +99,7 @@
           <div class="muted small center mono">{gameUrl}</div>
         </div>
       {/if}
+      <ScenarioPanel {live} {runId} />
       {#if d.run_status !== 'finished'}
         <form class="row msgform" onsubmit={send}>
           <input class="grow" bind:value={message} placeholder="Сообщение всем командам (появится у игроков сверху)" maxlength="500" />

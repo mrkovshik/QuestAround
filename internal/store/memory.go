@@ -147,6 +147,21 @@ func (m *Memory) GetRun(_ context.Context, id string) (Run, error) {
 	return r, nil
 }
 
+func (m *Memory) SetRunScenario(_ context.Context, runID, versionID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, ok := m.runs[runID]
+	if !ok {
+		return ErrNotFound
+	}
+	if _, ok := m.scenarios[versionID]; !ok {
+		return ErrNotFound
+	}
+	r.ScenarioVersionID = versionID
+	m.runs[runID] = r
+	return nil
+}
+
 func (m *Memory) GetRunByCode(_ context.Context, code string) (Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

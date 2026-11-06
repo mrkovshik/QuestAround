@@ -261,6 +261,21 @@ func (p *Postgres) GetRun(ctx context.Context, id string) (Run, error) {
 	return scanRun(p.pool.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE id = $1`, id))
 }
 
+func (p *Postgres) SetRunScenario(ctx context.Context, runID, versionID string) error {
+	tag, err := p.pool.Exec(ctx, `UPDATE runs SET scenario_version_id = $2 WHERE id = $1`, runID, versionID)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (p *Postgres) GetRunByCode(ctx context.Context, code string) (Run, error) {
 	return scanRun(p.pool.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE public_code = $1`, code))
 }

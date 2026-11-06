@@ -93,12 +93,26 @@ with sync_playwright() as p:
     expect(host.locator("td", has_text="Ёжики")).to_be_visible(timeout=5000)  # SSE
     host.screenshot(path=f"{SHOTS}/h02-registration.png", full_page=True)
 
+    # --- ведущий правит сценарий после анонса и меняет его в игре ---
+    host.click("a.brand")
+    fixed = open(os.path.join(HERE, "demo.yaml"), encoding="utf-8").read().replace("title: Сбор у парка", "title: Сбор у главного входа")
+    host.fill("textarea", fixed)
+    host.click("text=Проверить и сохранить")
+    expect(host.locator(".notice", has_text="версия 2")).to_be_visible()
+    host.click("td:has-text('Горячий Ключ: пилот')")
+    expect(host.locator(".scn")).to_contain_text("версия 1")
+    host.click(".scn >> text=Заменить")
+    note(host, "Сценарий заменён")
+    expect(host.locator(".scn")).to_contain_text("версия 2")
+    host.click(".tabs >> text=Регистрация")
+    expect(host.locator("td", has_text="Ёжики")).to_be_visible()
+
     # --- старт ---
     host.click("button:has-text('Старт игры')")
     note(host, "Игра запущена")
     host.click(".tabs >> text=Команды")
     expect(host.locator("tbody tr")).to_have_count(2)
-    expect(pl.locator("h2", has_text="Сбор у парка")).to_be_visible(timeout=5000)
+    expect(pl.locator("h2", has_text="Сбор у главного входа")).to_be_visible(timeout=5000)
 
     # --- игрок: неверный код, фото-бонус ---
     pl.fill(".codebar input", "0000")

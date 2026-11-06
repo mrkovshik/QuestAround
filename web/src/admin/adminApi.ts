@@ -136,6 +136,7 @@ export class AdminApi {
   scenarios = () => this.req<ScenarioVersion[]>('GET', '/scenarios')
   scenario = (id: string) => this.req<ScenarioVersion>('GET', `/scenarios/${id}`)
   uploadScenario = (yaml: string) => this.req<ScenarioVersion>('POST', '/scenarios', undefined, yaml)
+  changeScenario = (run: string, scenario_version_id: string) => this.req<Run>('PUT', `/runs/${run}/scenario`, { scenario_version_id })
 
   dashboard = (run: string) => this.req<Dashboard>('GET', `/runs/${run}/dashboard`)
   start = (run: string) => this.req<Dashboard>('POST', `/runs/${run}/start`)

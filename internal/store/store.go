@@ -74,6 +74,8 @@ type Store interface {
 	CreateRun(ctx context.Context, r NewRun) (Run, error)
 	GetRun(ctx context.Context, id string) (Run, error)
 	GetRunByCode(ctx context.Context, code string) (Run, error)
+	// SetRunScenario меняет версию сценария игры (проверка «до старта» — на вызывающем).
+	SetRunScenario(ctx context.Context, runID, scenarioVersionID string) error
 	ListRuns(ctx context.Context, orgID string) ([]Run, error)
 }
 

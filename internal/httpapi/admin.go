@@ -148,6 +148,22 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.runView(r, run))
 }
 
+// changeScenario — заменить сценарий игры до старта (команды сохраняются).
+func (s *Server) changeScenario(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ScenarioVersionID string `json:"scenario_version_id"`
+	}
+	if err := readJSON(w, r, &req); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	if err := s.cfg.Runners.ChangeScenario(r.Context(), r.PathValue("run"), req.ScenarioVersionID); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	s.getRun(w, r)
+}
+
 func (s *Server) runner(r *http.Request) (*runner.Runner, error) {
 	return s.cfg.Runners.Get(r.Context(), r.PathValue("run"))
 }
