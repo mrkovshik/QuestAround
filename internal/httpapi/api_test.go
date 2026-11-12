@@ -63,7 +63,7 @@ func newTestServer(t *testing.T) *testServer {
 	api := New(Config{
 		Store:        st,
 		Runners:      runner.NewManager(ctx, st, runner.RealClock{}, log),
-		Media:        DiskMedia{Dir: t.TempDir()},
+		Media:        &DiskMedia{Dir: t.TempDir()},
 		AdminToken:   adminToken,
 		Logger:       log,
 		SSEKeepAlive: time.Hour,

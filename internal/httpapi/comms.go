@@ -16,6 +16,7 @@ type chatDTO struct {
 	FromHost bool      `json:"from_host"`
 	Author   string    `json:"author"`
 	Text     string    `json:"text"`
+	MediaURL string    `json:"media_url,omitempty"`
 }
 
 func chatView(g *core.Game, team *core.Team) []chatDTO {
@@ -28,7 +29,7 @@ func chatView(g *core.Game, team *core.Team) []chatDTO {
 				author = p.Name
 			}
 		}
-		out = append(out, chatDTO{Seq: m.Seq, At: m.At, FromHost: m.FromHost, Author: author, Text: m.Text})
+		out = append(out, chatDTO{Seq: m.Seq, At: m.At, FromHost: m.FromHost, Author: author, Text: m.Text, MediaURL: mediaURL(m.MediaKey)})
 	}
 	return out
 }
@@ -82,13 +83,18 @@ func sosForTeam(g *core.Game, teamID string) []sosDTO {
 
 func (s *Server) postChat(w http.ResponseWriter, r *http.Request, p *player) {
 	var req struct {
-		Text string `json:"text"`
+		Text     string `json:"text"`
+		MediaKey string `json:"media_key"`
 	}
 	if err := readJSON(w, r, &req); err != nil {
 		s.writeError(w, r, err)
 		return
 	}
-	if _, err := p.Runner.Do(r.Context(), core.PostChat{TeamID: p.TeamID, PlayerID: p.PlayerID, Text: req.Text}); err != nil {
+	if err := checkMediaKey(p.RunID, req.MediaKey); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	if _, err := p.Runner.Do(r.Context(), core.PostChat{TeamID: p.TeamID, PlayerID: p.PlayerID, Text: req.Text, MediaKey: req.MediaKey}); err != nil {
 		s.writeError(w, r, err)
 		return
 	}
@@ -120,13 +126,18 @@ func (s *Server) raiseSOS(w http.ResponseWriter, r *http.Request, p *player) {
 
 func (s *Server) hostChat(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Text string `json:"text"`
+		Text     string `json:"text"`
+		MediaKey string `json:"media_key"`
 	}
 	if err := readJSON(w, r, &req); err != nil {
 		s.writeError(w, r, err)
 		return
 	}
-	s.command(w, r, core.PostChat{TeamID: r.PathValue("team"), FromHost: true, Text: req.Text})
+	if err := checkMediaKey(r.PathValue("run"), req.MediaKey); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	s.command(w, r, core.PostChat{TeamID: r.PathValue("team"), FromHost: true, Text: req.Text, MediaKey: req.MediaKey})
 }
 
 func (s *Server) resolveSOS(w http.ResponseWriter, r *http.Request) {

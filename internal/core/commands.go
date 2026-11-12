@@ -75,7 +75,8 @@ type SetLeaderboard struct {
 }
 
 type SendBroadcast struct {
-	Text string
+	Text     string
+	MediaKey string
 }
 
 // NoteScenarioChanged — записать в журнал, что сценарий заменён.

@@ -200,6 +200,7 @@ type Hint struct {
 	OnRequest bool     `yaml:"on_request"` // открывается по запросу
 	Penalty   *Penalty `yaml:"penalty"`    // только для on_request
 	Text      string   `yaml:"text"`
+	Media     []string `yaml:"media"`
 }
 
 // IsAuto — подсказка по таймеру (явному или из defaults.hint_after).
@@ -213,8 +214,9 @@ type Penalty struct {
 type Bonus struct {
 	ID     string `yaml:"id"`
 	Title  string `yaml:"title"`
-	Answer Answer `yaml:"answer"`
-	Points int    `yaml:"points"`
+	Answer Answer   `yaml:"answer"`
+	Points int      `yaml:"points"`
+	Media  []string `yaml:"media"`
 }
 
 // Unlock — условие открытия уровня в flow: graph. Задаётся ровно одна форма.

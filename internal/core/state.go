@@ -78,6 +78,7 @@ type Game struct {
 	Results     *Results // утверждённые итоги; nil — ещё не утверждены
 	SOS         []*SOSAlert
 	HostContact string
+	Photos      []*Photo // все фото-ответы по порядку
 
 	seq      int64
 	levelIdx map[string]int
@@ -129,8 +130,31 @@ type ScoreEntry struct {
 }
 
 type Message struct {
-	At   time.Time
-	Text string
+	At       time.Time
+	Text     string
+	MediaKey string
+}
+
+// PhotoStatus — судьба фото-ответа.
+type PhotoStatus string
+
+const (
+	PhotoPending  PhotoStatus = "pending"
+	PhotoAccepted PhotoStatus = "accepted"
+	PhotoRejected PhotoStatus = "rejected"
+)
+
+// Photo — каждое фото, присланное командой (в т.ч. отклонённые и дубли): для галереи.
+type Photo struct {
+	Seq      int64
+	At       time.Time
+	TeamID   string
+	PlayerID string
+	LevelID  string
+	BonusID  string
+	MediaKey string
+	Status   PhotoStatus
+	Comment  string // комментарий модератора
 }
 
 type Team struct {
@@ -340,6 +364,17 @@ func (g *Game) Apply(e Event) {
 			}
 			g.seen[e.TeamID][e.ClientEventID] = res
 		}
+		if p.Kind == KindPhoto && p.MediaKey != "" {
+			ph := &Photo{Seq: e.Seq, At: e.At, TeamID: e.TeamID, PlayerID: e.PlayerID,
+				LevelID: p.LevelID, BonusID: p.BonusID, MediaKey: p.MediaKey, Status: PhotoPending}
+			switch p.Result {
+			case ResultCorrect:
+				ph.Status = PhotoAccepted
+			case ResultWrong, ResultDuplicate:
+				ph.Status = PhotoRejected
+			}
+			g.Photos = append(g.Photos, ph)
+		}
 		switch p.Result {
 		case ResultCorrect:
 			if p.AnswerIdx != nil {
@@ -371,6 +406,14 @@ func (g *Game) Apply(e Event) {
 			return
 		}
 		delete(g.pending, p.Ref)
+		for _, ph := range g.Photos {
+			if ph.Seq == p.Ref {
+				ph.Status, ph.Comment = PhotoRejected, p.Comment
+				if p.Approved {
+					ph.Status = PhotoAccepted
+				}
+			}
+		}
 		t = g.Teams[item.TeamID]
 		if item.AnswerIdx >= 0 {
 			ls := t.Levels[item.LevelID]
@@ -434,7 +477,7 @@ func (g *Game) Apply(e Event) {
 		g.Leaderboard.Snapshot = g.Standings(e.At)
 
 	case Broadcast:
-		g.Messages = append(g.Messages, Message{At: e.At, Text: p.Text})
+		g.Messages = append(g.Messages, Message{At: e.At, Text: p.Text, MediaKey: p.MediaKey})
 
 	case ResultsApproved:
 		g.Results = &Results{At: e.At, Standings: p.Standings, Message: p.Message}

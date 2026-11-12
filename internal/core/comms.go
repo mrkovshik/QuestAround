@@ -24,6 +24,7 @@ const (
 type ChatPosted struct {
 	FromHost bool   `json:"from_host,omitempty"`
 	Text     string `json:"text"`
+	MediaKey string `json:"media_key,omitempty"` // приложенное фото
 }
 
 // SOSRaised — игрок просит помощи. Координаты — если телефон их отдал.
@@ -63,6 +64,7 @@ type ChatMessage struct {
 	FromHost bool
 	PlayerID string
 	Text     string
+	MediaKey string
 }
 
 type SOSAlert struct {
@@ -84,7 +86,7 @@ func (g *Game) applyComms(e Event) bool {
 	switch p := e.Payload.(type) {
 	case ChatPosted:
 		t := g.Teams[e.TeamID]
-		t.Chat = append(t.Chat, ChatMessage{Seq: e.Seq, At: e.At, FromHost: p.FromHost, PlayerID: e.PlayerID, Text: p.Text})
+		t.Chat = append(t.Chat, ChatMessage{Seq: e.Seq, At: e.At, FromHost: p.FromHost, PlayerID: e.PlayerID, Text: p.Text, MediaKey: p.MediaKey})
 	case SOSRaised:
 		g.SOS = append(g.SOS, &SOSAlert{Seq: e.Seq, At: e.At, TeamID: e.TeamID, PlayerID: e.PlayerID,
 			Lat: p.Lat, Lng: p.Lng, Accuracy: p.Accuracy, Text: p.Text})
@@ -110,6 +112,7 @@ type PostChat struct {
 	PlayerID string // пусто, если пишет ведущий
 	FromHost bool
 	Text     string
+	MediaKey string // фото, загруженное заранее; текст тогда необязателен
 }
 
 // RaiseSOS — сигнал тревоги от любого игрока команды.
@@ -163,7 +166,7 @@ func (g *Game) postChat(t *tx, c PostChat) error {
 		return ErrUnknownTeam
 	}
 	text := strings.TrimSpace(c.Text)
-	if text == "" || utf8.RuneCountInString(text) > maxChatLen {
+	if (text == "" && c.MediaKey == "") || utf8.RuneCountInString(text) > maxChatLen {
 		return ErrBadCommand
 	}
 	if !c.FromHost {
@@ -175,7 +178,7 @@ func (g *Game) postChat(t *tx, c PostChat) error {
 	if c.FromHost {
 		by = "host"
 	}
-	t.emit(team.ID, by, "", ChatPosted{FromHost: c.FromHost, Text: text})
+	t.emit(team.ID, by, "", ChatPosted{FromHost: c.FromHost, Text: text, MediaKey: c.MediaKey})
 	return nil
 }
 

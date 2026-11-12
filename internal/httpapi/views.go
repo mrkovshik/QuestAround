@@ -36,14 +36,15 @@ func standingsDTO(st []core.Standing) []standingDTO {
 }
 
 type messageDTO struct {
-	At   time.Time `json:"at"`
-	Text string    `json:"text"`
+	At       time.Time `json:"at"`
+	Text     string    `json:"text"`
+	MediaURL string    `json:"media_url,omitempty"`
 }
 
 func messagesDTO(ms []core.Message) []messageDTO {
 	out := make([]messageDTO, len(ms))
 	for i, m := range ms {
-		out[i] = messageDTO{At: m.At, Text: m.Text}
+		out[i] = messageDTO{At: m.At, Text: m.Text, MediaURL: mediaURL(m.MediaKey)}
 	}
 	return out
 }
@@ -64,6 +65,7 @@ type hintDTO struct {
 	PenaltySec    int64      `json:"penalty_sec,omitempty"`
 	PenaltyPoints int        `json:"penalty_points,omitempty"`
 	OpensAt       *time.Time `json:"opens_at,omitempty"`
+	Media         []string   `json:"media,omitempty"` // только у открытых
 }
 
 type bonusDTO struct {
@@ -71,8 +73,9 @@ type bonusDTO struct {
 	Title   string `json:"title"`
 	Type    string `json:"type"`
 	Points  int    `json:"points"`
-	Done    bool   `json:"done"`
-	Pending bool   `json:"pending"`
+	Done    bool     `json:"done"`
+	Pending bool     `json:"pending"`
+	Media   []string `json:"media,omitempty"`
 }
 
 type levelDTO struct {
@@ -123,7 +126,7 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 	for i, h := range sl.Hints {
 		hd := hintDTO{Index: i, Opened: ls.Hints[i], OnRequest: h.OnRequest}
 		if hd.Opened {
-			hd.Text = h.Text
+			hd.Text, hd.Media = h.Text, h.Media
 		}
 		if h.Penalty != nil {
 			hd.PenaltySec = int64(h.Penalty.Time.D() / time.Second)
@@ -137,7 +140,7 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 	for _, b := range sl.Bonuses {
 		d.Bonuses = append(d.Bonuses, bonusDTO{
 			ID: b.ID, Title: b.Title, Type: clientAnswerType(b.Answer.Type), Points: b.Points,
-			Done: team.Bonuses[b.ID], Pending: team.PendingBonus[b.ID] != 0,
+			Done: team.Bonuses[b.ID], Pending: team.PendingBonus[b.ID] != 0, Media: b.Media,
 		})
 	}
 	return d
@@ -286,6 +289,7 @@ type playerStateDTO struct {
 	Chat         []chatDTO      `json:"chat"`
 	SOS          []sosDTO       `json:"sos"`
 	HostContact  string         `json:"host_contact,omitempty"`
+	Photos       []photoDTO     `json:"photos"`
 	Leaderboard  struct {
 		Visible bool `json:"visible"`
 		Frozen  bool `json:"frozen"`
@@ -310,6 +314,7 @@ func playerStateView(g *core.Game, title, playerID string, team *core.Team, now 
 		Chat:         chatView(g, team),
 		SOS:          sosForTeam(g, team.ID),
 		HostContact:  g.HostContact,
+		Photos:       teamPhotos(g, team.ID),
 	}
 	if team.Status == core.TeamStatusScheduled {
 		d.StartAt = timePtr(team.ScheduledAt)

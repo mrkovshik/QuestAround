@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Pic from '../components/Pic.svelte'
   import { ApiError } from '../lib/api'
   import type { JournalEvent } from './adminApi'
   import type { RunLive } from './runLive.svelte'
@@ -103,7 +104,7 @@
       case 'team_renamed':
         return p.name
       case 'broadcast':
-        return p.text
+        return p.text || (p.media_key ? 'фото' : '')
       case 'results_approved':
         return (p.standings ?? [])
           .slice(0, 3)
@@ -112,7 +113,7 @@
       case 'scenario_changed':
         return `${p.slug}, версия ${p.version}`
       case 'chat_posted':
-        return (p.from_host ? 'ведущий: ' : '') + p.text
+        return (p.from_host ? 'ведущий: ' : '') + (p.text || (p.media_key ? 'фото' : ''))
       case 'sos_raised':
         return [p.text, p.lat != null ? `${(+p.lat).toFixed(5)}, ${(+p.lng).toFixed(5)}` : 'без координат'].filter(Boolean).join(' · ')
       case 'sos_resolved':
@@ -152,7 +153,12 @@
             <td>{e.team_id ? (names[e.team_id] ?? e.team_id) : '—'}</td>
             <td class="small">{e.player_id === 'host' ? 'ведущий' : e.player_id ? (players[e.player_id] ?? '') : ''}</td>
             <td>{LABEL[e.type] ?? e.type}</td>
-            <td class="small">{describe(e)}</td>
+            <td class="small">
+              {describe(e)}
+              {#if e.payload.media_key}
+                <span class="jpic"><Pic src={'/m/' + e.payload.media_key} cls="thumb" /></span>
+              {/if}
+            </td>
           </tr>
         {/each}
       </tbody>
@@ -161,6 +167,12 @@
 </section>
 
 <style>
+  .jpic {
+    display: inline-block;
+    width: 44px;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+  }
   .head {
     margin-bottom: 0.25rem;
   }

@@ -163,6 +163,7 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request, p *player) {
 		s.writeError(w, r, err)
 		return
 	}
+	s.resolveLevels(d.Levels)
 	writeJSON(w, http.StatusOK, d)
 }
 

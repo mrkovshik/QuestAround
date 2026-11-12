@@ -68,6 +68,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/stream", p(s.playerStream))
 	mux.Handle("POST /api/v1/chat", p(s.postChat))
 	mux.Handle("POST /api/v1/sos", p(s.raiseSOS))
+	mux.Handle("POST /api/v1/uploads", p(s.playerUpload))
 	mux.Handle("GET /api/v1/team", p(s.team))
 	mux.Handle("PATCH /api/v1/team", p(s.renameTeam))
 	mux.Handle("DELETE /api/v1/team/players/{player}", p(s.removePlayer))
@@ -105,6 +106,15 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /admin/v1/runs/{run}/broadcast", a(s.broadcast))
 	mux.Handle("GET /admin/v1/runs/{run}/events", a(s.events))
 	mux.Handle("GET /admin/v1/media/{key...}", a(s.media))
+	mux.Handle("GET /admin/v1/assets", a(s.listAssets))
+	mux.Handle("POST /admin/v1/assets", a(s.uploadAssets))
+	mux.Handle("DELETE /admin/v1/assets/{name}", a(s.deleteAsset))
+	mux.Handle("POST /admin/v1/runs/{run}/uploads", a(s.hostUpload))
+	mux.Handle("GET /admin/v1/runs/{run}/photos", a(s.photos))
+	mux.Handle("GET /admin/v1/runs/{run}/photos.zip", a(s.photosZip))
+
+	// Файлы по неугадываемому ключу — без авторизации, чтобы <img> и офлайн-кэш работали просто.
+	mux.HandleFunc("GET /m/{key...}", s.publicMedia)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -139,7 +149,8 @@ func bearer(r *http.Request) string {
 		return strings.TrimSpace(t)
 	}
 	// EventSource в браузере не умеет заголовки — токен в query для SSE.
-	if strings.HasSuffix(r.URL.Path, "/stream") {
+	// То же для скачивания архива обычной ссылкой.
+	if strings.HasSuffix(r.URL.Path, "/stream") || strings.HasSuffix(r.URL.Path, ".zip") {
 		return r.URL.Query().Get("token")
 	}
 	return ""

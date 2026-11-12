@@ -55,12 +55,12 @@ export class Live {
   }
 
   /** Непрочитанные сообщения ведущего: общие и в канал команды, старые сверху. */
-  unread(): { at: string; text: string; personal: boolean }[] {
+  unread(): { at: string; text: string; personal: boolean; media_url?: string }[] {
     const s = this.state
     if (!s) return []
     const all = [
-      ...s.messages.map((m) => ({ at: m.at, text: m.text, personal: false })),
-      ...s.chat.filter((m) => m.from_host).map((m) => ({ at: m.at, text: m.text, personal: true })),
+      ...s.messages.map((m) => ({ at: m.at, text: m.text, personal: false, media_url: m.media_url })),
+      ...s.chat.filter((m) => m.from_host).map((m) => ({ at: m.at, text: m.text, personal: true, media_url: m.media_url })),
     ]
     return all.filter((m) => Date.parse(m.at) > this.lastRead).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   }
@@ -76,9 +76,15 @@ export class Live {
     }
   }
 
-  async sendChat(text: string): Promise<boolean> {
+  async sendChat(text: string, photo?: File | null): Promise<boolean> {
     try {
-      await api.chat(this.token, text)
+      let key: string | undefined
+      if (photo) {
+        const form = new FormData()
+        form.append('photo', await compressImage(photo), 'photo.jpg')
+        key = (await api.upload(this.token, form)).key
+      }
+      await api.chat(this.token, text, key)
       this.scheduleRefresh()
       return true
     } catch (e) {
@@ -175,6 +181,7 @@ export class Live {
       this.fetchedAt = Date.now()
       this.state = s
       this.error = null
+      precacheMedia(s)
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         this.unauthorized = true
@@ -325,4 +332,35 @@ export class Live {
       return false
     }
   }
+}
+
+/**
+ * Картинки заданий, открытых подсказок, чата и объявлений — заранее в кэш:
+ * если связь пропадёт, они уже будут на телефоне (service worker отдаёт /m/ из кэша).
+ */
+const MEDIA_CACHE = 'qa-media-v1'
+const cachedMedia = new Set<string>()
+
+function precacheMedia(s: PlayerState) {
+  if (!('caches' in globalThis)) return
+  const urls = new Set<string>()
+  for (const l of s.levels) {
+    if (!l.open) continue
+    l.media?.forEach((u) => urls.add(u))
+    l.hints.forEach((h) => h.media?.forEach((u) => urls.add(u)))
+    l.bonuses?.forEach((b) => b.media?.forEach((u) => urls.add(u)))
+  }
+  s.messages.forEach((m) => m.media_url && urls.add(m.media_url))
+  s.chat.forEach((m) => m.media_url && urls.add(m.media_url))
+  const todo = [...urls].filter((u) => u.startsWith('/m/') && !cachedMedia.has(u))
+  if (!todo.length) return
+  todo.forEach((u) => cachedMedia.add(u))
+  caches
+    .open(MEDIA_CACHE)
+    .then(async (c) => {
+      for (const u of todo) {
+        if (!(await c.match(u))) await c.add(u).catch(() => cachedMedia.delete(u))
+      }
+    })
+    .catch(() => todo.forEach((u) => cachedMedia.delete(u)))
 }

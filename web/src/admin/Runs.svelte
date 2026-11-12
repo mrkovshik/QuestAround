@@ -3,6 +3,7 @@
   import { router } from '../lib/router.svelte'
   import { ScenarioError, type AdminApi, type Run, type ScenarioIssue, type ScenarioVersion } from './adminApi'
   import { RUN_STATUS } from './time'
+  import Assets from './Assets.svelte'
 
   let { api, onUnauthorized }: { api: AdminApi; onUnauthorized: () => void } = $props()
 
@@ -150,6 +151,8 @@
       </form>
     </section>
   </div>
+
+  <Assets {api} />
 </div>
 
 <style>

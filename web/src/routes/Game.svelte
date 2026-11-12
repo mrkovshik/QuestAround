@@ -9,6 +9,8 @@
   import Score from '../components/Score.svelte'
   import Congrats from '../components/Congrats.svelte'
   import Comms from '../components/Comms.svelte'
+  import Pic from '../components/Pic.svelte'
+  import TeamPhotos from '../components/TeamPhotos.svelte'
 
   let { code, token, onLogout }: { code: string; token: string; onLogout: () => void } = $props()
 
@@ -90,7 +92,8 @@
         {#each unread as m, i (i)}
           <div class="um">
             <span class="small muted">{hhmm(m.at)}{m.personal ? ' · вашей команде' : ''}</span>
-            <p class="task">{m.text}</p>
+            {#if m.text}<p class="task">{m.text}</p>{/if}
+            {#if m.media_url}<div class="umedia"><Pic src={m.media_url} cls="inline" /></div>{/if}
           </div>
         {/each}
         {#if unread.some((m) => m.personal)}
@@ -117,6 +120,7 @@
       {/if}
       {#if !waiting}
         <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} rule={s.scoring_rule} />
+        <TeamPhotos photos={s.photos} />
       {/if}
       <TeamPanel {live} {logout} />
     {:else if tab === 'table'}
@@ -140,6 +144,7 @@
         </div>
       {/if}
       <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} rule={s.scoring_rule} />
+      <TeamPhotos photos={s.photos} />
       <Play {live} />
     {:else if status === 'withdrawn'}
       <div class="card"><p>Команда снята с игры.</p></div>
@@ -204,6 +209,9 @@
   }
   .msg {
     border-color: var(--accent);
+  }
+  .umedia {
+    margin: 0.2rem 0 0.5rem;
   }
   .um p {
     margin: 0.1rem 0 0.5rem;

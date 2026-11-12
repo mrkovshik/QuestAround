@@ -1,7 +1,7 @@
 // Живое состояние игры для ведущего: дашборд + очередь модерации, SSE.
 
 import { ApiError } from '../lib/api'
-import type { AdminApi, Dashboard, ModerationItem, Run } from './adminApi'
+import type { AdminApi, Dashboard, ModerationItem, Photo, Run } from './adminApi'
 
 export type Note = { id: number; kind: 'ok' | 'bad' | 'info'; text: string }
 
@@ -9,6 +9,7 @@ export class RunLive {
   run = $state<Run | null>(null)
   dash = $state<Dashboard | null>(null)
   queue = $state<ModerationItem[]>([])
+  photos = $state<Photo[]>([])
   error = $state<string | null>(null)
   streaming = $state(false)
   now = $state(Date.now())
@@ -55,9 +56,14 @@ export class RunLive {
 
   async refresh() {
     try {
-      const [d, q] = await Promise.all([this.api.dashboard(this.runId), this.api.moderation(this.runId)])
+      const [d, q, ph] = await Promise.all([
+        this.api.dashboard(this.runId),
+        this.api.moderation(this.runId),
+        this.api.photos(this.runId),
+      ])
       this.dash = d
       this.queue = q
+      this.photos = ph
       this.error = null
     } catch (e) {
       this.error = e instanceof ApiError ? e.message : 'Нет связи с сервером'

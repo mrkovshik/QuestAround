@@ -35,7 +35,10 @@ func (s *Server) uploadScenario(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	sc, err := scenario.Parse(src)
+	sc, err := scenario.ParseWith(src, scenario.Options{MediaExists: func(n string) bool {
+		_, ok := s.cfg.Media.AssetKey(n)
+		return ok
+	}})
 	if err != nil {
 		var se scenario.Errors
 		if !errors.As(err, &se) {
@@ -395,13 +398,18 @@ func (s *Server) setLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) broadcast(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Text string `json:"text"`
+		Text     string `json:"text"`
+		MediaKey string `json:"media_key"`
 	}
 	if err := readJSON(w, r, &req); err != nil {
 		s.writeError(w, r, err)
 		return
 	}
-	s.command(w, r, core.SendBroadcast{Text: req.Text})
+	if err := checkMediaKey(r.PathValue("run"), req.MediaKey); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	s.command(w, r, core.SendBroadcast{Text: req.Text, MediaKey: req.MediaKey})
 }
 
 // events — журнал игры целиком (разбор спорных ситуаций, аналитика).

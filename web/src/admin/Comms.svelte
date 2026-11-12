@@ -2,6 +2,9 @@
   // Связь: каналы команд (капитан ↔ ведущий), история объявлений, телефон ведущего.
   import type { RunLive } from './runLive.svelte'
   import { hhmm } from './time'
+  import AttachPhoto from './AttachPhoto.svelte'
+  import Pic from '../components/Pic.svelte'
+  import { compressImage } from '../lib/image'
 
   let { live, runId, teamId = $bindable() }: { live: RunLive; runId: string; teamId: string | null } = $props()
 
@@ -50,10 +53,19 @@
   })
 
   let text = $state('')
+  let photo = $state<File | null>(null)
   async function send(e: SubmitEvent) {
     e.preventDefault()
     if (!cur) return
-    if (await live.act(() => live.api.teamChat(runId, cur.id, text.trim()))) text = ''
+    const team = cur.id
+    const ok = await live.act(async () => {
+      const key = photo ? (await live.api.upload(runId, await compressImage(photo))).key : undefined
+      return live.api.teamChat(runId, team, text.trim(), key)
+    })
+    if (ok) {
+      text = ''
+      photo = null
+    }
   }
 
   let contact = $state('')
@@ -95,13 +107,17 @@
         {#each cur.chat as m (m.seq)}
           <div class="msg" class:host={m.from_host}>
             <div class="small muted">{m.author} · {hhmm(m.at)}</div>
-            <div class="bubble">{m.text}</div>
+            <div class="bubble">
+              {#if m.media_url}<Pic src={m.media_url} cls="inline" />{/if}
+              {#if m.text}<div>{m.text}</div>{/if}
+            </div>
           </div>
         {/each}
       </div>
       <form class="row" onsubmit={send}>
+        <AttachPhoto bind:file={photo} />
         <input class="grow" bind:value={text} placeholder="Ответ команде «{cur.name}»" maxlength="1000" />
-        <button disabled={!text.trim()}>Отправить</button>
+        <button disabled={!text.trim() && !photo}>Отправить</button>
       </form>
     {/if}
   </section>
@@ -117,7 +133,10 @@
     <h3>Объявления</h3>
     {#if d.messages.length === 0}<p class="muted small">Не было.</p>{/if}
     {#each [...d.messages].reverse() as m, i (i)}
-      <div class="ann small"><span class="muted">{hhmm(m.at)}</span> {m.text}</div>
+      <div class="ann small">
+        <span class="muted">{hhmm(m.at)}</span> {m.text}
+        {#if m.media_url}<div class="amedia"><Pic src={m.media_url} cls="inline" /></div>{/if}
+      </div>
     {/each}
 
     {#if sosDone.length}
@@ -194,6 +213,10 @@
   }
   .side h3:not(:first-child) {
     margin-top: 1.2rem;
+  }
+  .amedia {
+    margin-top: 0.3rem;
+    max-width: 160px;
   }
   .ann {
     padding: 0.3rem 0;

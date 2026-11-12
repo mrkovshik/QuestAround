@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata" // часовые пояса без tzdata в образе (TZ=Europe/Moscow)
 
 	"questaround/internal/httpapi"
 	"questaround/internal/runner"
@@ -69,7 +70,7 @@ func cmdServe(args []string) error {
 	api := httpapi.New(httpapi.Config{
 		Store:      st,
 		Runners:    runner.NewManager(runnersCtx, st, runner.RealClock{}, log),
-		Media:      httpapi.DiskMedia{Dir: *mediaDir},
+		Media:      &httpapi.DiskMedia{Dir: *mediaDir},
 		AdminToken: *adminToken,
 		Logger:     log,
 		Static:     webui.Handler(),

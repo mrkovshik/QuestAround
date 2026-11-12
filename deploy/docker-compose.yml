@@ -29,6 +29,8 @@ services:
     environment:
       QUESTAROUND_DATABASE_URL: postgres://questaround:${POSTGRES_PASSWORD}@postgres:5432/questaround?sslmode=disable
       QUESTAROUND_ADMIN_TOKEN: ${ADMIN_TOKEN:?задайте ADMIN_TOKEN в .env}
+      # Часовой пояс — для времени в именах файлов архива фото.
+      TZ: ${TZ:-Europe/Moscow}
     volumes:
       - media:/data
     # Наружу не публикуется — только через Caddy.

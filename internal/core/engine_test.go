@@ -178,6 +178,12 @@ func TestModeratedAnswer(t *testing.T) {
 	out = h.do(SubmitAnswer{TeamID: "a", Kind: KindPhoto, LevelID: "l4", MediaKey: "m/2.jpg"})
 	h.do(Moderate{Ref: out.Answer.Seq, Approved: true})
 	h.eq("финиш", h.team("a").Status, TeamStatusFinished)
+
+	// галерея помнит все фото со статусами
+	ph := h.g.Photos
+	h.eq("фото", len(ph), 2)
+	h.eq("первое", [3]string{ph[0].MediaKey, string(ph[0].Status), ph[0].Comment}, [3]string{"m/1.jpg", "rejected", "не то место"})
+	h.eq("второе", [2]string{ph[1].MediaKey, string(ph[1].Status)}, [2]string{"m/2.jpg", "accepted"})
 }
 
 func TestHints(t *testing.T) {

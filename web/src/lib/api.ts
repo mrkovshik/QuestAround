@@ -16,6 +16,7 @@ export interface Hint {
   penalty_sec?: number
   penalty_points?: number
   opens_at?: string
+  media?: string[]
 }
 
 export interface Bonus {
@@ -25,6 +26,7 @@ export interface Bonus {
   points: number
   done: boolean
   pending: boolean
+  media?: string[]
 }
 
 export interface Level {
@@ -61,6 +63,20 @@ export interface Team {
 export interface Message {
   at: string
   text: string
+  media_url?: string
+}
+
+export interface Photo {
+  seq: number
+  at: string
+  team_id?: string
+  team_name?: string
+  player_name?: string
+  level_id: string
+  title: string
+  status: 'pending' | 'accepted' | 'rejected'
+  comment?: string
+  url: string
 }
 
 export interface ScoreItem {
@@ -88,6 +104,7 @@ export interface ChatMsg {
   from_host: boolean
   author: string
   text: string
+  media_url?: string
 }
 
 export interface Sos {
@@ -131,6 +148,7 @@ export interface PlayerState {
   chat: ChatMsg[]
   sos: Sos[]
   host_contact?: string
+  photos: Photo[]
   leaderboard: { visible: boolean; frozen: boolean; final: boolean }
 }
 
@@ -231,7 +249,9 @@ export const api = {
   leaderboard: (token: string) =>
     request<{ frozen: boolean; final: boolean; rule: string; standings: Standing[] }>('GET', '/api/v1/leaderboard', { token }),
 
-  chat: (token: string, text: string) => request<void>('POST', '/api/v1/chat', { token, body: { text } }),
+  chat: (token: string, text: string, media_key?: string) =>
+    request<void>('POST', '/api/v1/chat', { token, body: { text, media_key } }),
+  upload: (token: string, form: FormData) => request<{ key: string; url: string }>('POST', '/api/v1/uploads', { token, form }),
   sos: (token: string, body: { lat?: number; lng?: number; accuracy?: number; text: string }) =>
     request<{ seq: number }>('POST', '/api/v1/sos', { token, body }),
 

@@ -23,7 +23,17 @@ func ParseFile(path string) (*Scenario, error) {
 
 // Parse разбирает YAML, подставляет значения по умолчанию и валидирует.
 // При проблемах в сценарии возвращает Errors со всеми найденными ошибками.
-func Parse(data []byte) (*Scenario, error) {
+func Parse(data []byte) (*Scenario, error) { return ParseWith(data, Options{}) }
+
+// Options — проверки, которым нужен внешний мир.
+type Options struct {
+	// MediaExists — загружена ли картинка с таким именем в библиотеку.
+	// nil — имена файлов не проверяются (только формат).
+	MediaExists func(name string) bool
+}
+
+// ParseWith — Parse с дополнительными проверками.
+func ParseWith(data []byte, opt Options) (*Scenario, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
 		return nil, fmt.Errorf("синтаксис YAML: %w", err)
@@ -41,7 +51,7 @@ func Parse(data []byte) (*Scenario, error) {
 
 	s.applyDefaults()
 
-	v := &validator{s: &s, loc: locator{root: &root}}
+	v := &validator{s: &s, loc: locator{root: &root}, opt: opt}
 	v.validate()
 	if len(v.errs) > 0 {
 		return nil, v.errs

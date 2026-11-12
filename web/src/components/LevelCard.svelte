@@ -3,6 +3,7 @@
   import type { Live } from '../lib/live.svelte'
   import { clock, minutes, points } from '../lib/format'
   import PhotoButton from './PhotoButton.svelte'
+  import Pic from './Pic.svelte'
 
   let { live, level }: { live: Live; level: Level } = $props()
 
@@ -26,8 +27,6 @@
     if (!confirm(`Взять подсказку? Штраф: ${fine}.`)) return
     await live.requestHint(level.id, idx)
   }
-
-  const isUrl = (m: string) => /^https?:\/\//.test(m)
 </script>
 
 <article class="card level" class:solved={!level.open}>
@@ -51,8 +50,8 @@
 
   <p class="task">{level.task}</p>
 
-  {#each (level.media ?? []).filter(isUrl) as m (m)}
-    <img class="media" src={m} alt="" loading="lazy" />
+  {#each level.media ?? [] as m (m)}
+    <div class="media"><Pic src={m} /></div>
   {/each}
 
   {#if active}
@@ -92,7 +91,12 @@
     <div class="hints">
       {#each level.hints as h (h.index)}
         {#if h.opened}
-          <div class="hint"><strong>Подсказка {h.index + 1}.</strong> <span class="task">{h.text}</span></div>
+          <div class="hint">
+            <strong>Подсказка {h.index + 1}.</strong> <span class="task">{h.text ?? ''}</span>
+            {#each h.media ?? [] as m (m)}
+              <div class="hmedia"><Pic src={m} /></div>
+            {/each}
+          </div>
         {:else if active && !h.on_request && h.opens_at}
           <div class="muted small">Подсказка {h.index + 1} откроется через {clock((Date.parse(h.opens_at) - live.now) / 1000)}</div>
         {:else if canRequest && h.on_request}
@@ -123,6 +127,9 @@
               <span class="badge">+{b.points}</span>
             {/if}
           </div>
+          {#each b.media ?? [] as m (m)}
+            <div class="hmedia"><Pic src={m} /></div>
+          {/each}
           {#if playing && !b.done && !b.pending}
             {#if b.type === 'photo'}
               <PhotoButton {live} label="Отправить фото" secondary target={{ level_id: level.id, bonus_id: b.id }} />
@@ -167,9 +174,10 @@
     border-color: var(--warn);
   }
   .media {
-    width: 100%;
-    border-radius: 10px;
     margin-bottom: 0.75rem;
+  }
+  .hmedia {
+    margin-top: 0.5rem;
   }
   .choices {
     display: grid;

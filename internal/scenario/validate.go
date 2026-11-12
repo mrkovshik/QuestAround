@@ -14,7 +14,31 @@ var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 type validator struct {
 	s    *Scenario
 	loc  locator
+	opt  Options
 	errs Errors
+}
+
+var mediaNameRe = regexp.MustCompile(`(?i)^[^/\\?#:]+\.(jpe?g|png|webp|gif)$`)
+
+// IsMediaName — допустимое имя картинки в библиотеке.
+func IsMediaName(n string) bool { return mediaNameRe.MatchString(n) && len(n) <= 120 }
+
+// IsMediaURL — media задана ссылкой, а не именем файла из библиотеки.
+func IsMediaURL(m string) bool {
+	return strings.HasPrefix(m, "https://") || strings.HasPrefix(m, "http://")
+}
+
+func (v *validator) validateMedia(path []any, media []string) {
+	for i, m := range media {
+		mp := slices.Clip(append(slices.Clip(path), "media", i))
+		switch {
+		case IsMediaURL(m):
+		case !IsMediaName(m):
+			v.add(mp, "%q: ожидалось имя картинки (foto.jpg, .png, .webp, .gif) или ссылка https://…", m)
+		case v.opt.MediaExists != nil && !v.opt.MediaExists(m):
+			v.add(mp, "картинка %q не загружена — добавьте её в разделе «Картинки»", m)
+		}
+	}
 }
 
 func (v *validator) add(path []any, format string, args ...any) {
@@ -176,6 +200,7 @@ func (v *validator) validateLevels() {
 		if name == "" {
 			name = fmt.Sprintf("#%d", i+1)
 		}
+		v.validateMedia(lp(), l.Media)
 
 		switch {
 		case l.ID == "":
@@ -227,9 +252,10 @@ func (v *validator) validateLevels() {
 		auto := 0
 		for hi, h := range l.Hints {
 			hp := lp("hints", hi)
-			if strings.TrimSpace(h.Text) == "" {
-				v.add(hp, "пустой текст подсказки")
+			if strings.TrimSpace(h.Text) == "" && len(h.Media) == 0 {
+				v.add(hp, "пустая подсказка: нужен text или media")
 			}
+			v.validateMedia(hp, h.Media)
 			if h.OnRequest {
 				if h.After != 0 {
 					v.add(append(hp, "after"), "подсказка не может быть одновременно по таймеру и по запросу")
@@ -254,6 +280,7 @@ func (v *validator) validateLevels() {
 		// Бонусы.
 		for bi, b := range l.Bonuses {
 			bp := lp("bonuses", bi)
+			v.validateMedia(bp, b.Media)
 			switch {
 			case b.ID == "":
 				v.add(bp, "не задан id бонуса")

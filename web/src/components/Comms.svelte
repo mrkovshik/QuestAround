@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Live } from '../lib/live.svelte'
+  import Pic from './Pic.svelte'
 
   let { live }: { live: Live } = $props()
 
@@ -11,6 +12,23 @@
   let sosOpen = $state(false)
   let sosText = $state('')
   let chatText = $state('')
+  let photo = $state<File | null>(null)
+  let photoUrl = $state<string | null>(null)
+  let photoInput: HTMLInputElement | undefined = $state()
+  let sending = $state(false)
+
+  function pickPhoto() {
+    const f = photoInput?.files?.[0] ?? null
+    if (photoUrl) URL.revokeObjectURL(photoUrl)
+    photo = f
+    photoUrl = f ? URL.createObjectURL(f) : null
+  }
+  function dropPhoto() {
+    if (photoUrl) URL.revokeObjectURL(photoUrl)
+    photo = null
+    photoUrl = null
+    if (photoInput) photoInput.value = ''
+  }
   let thread: HTMLElement | undefined = $state()
 
   const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -25,7 +43,15 @@
 
   async function sendChat(e: SubmitEvent) {
     e.preventDefault()
-    if (await live.sendChat(chatText.trim())) chatText = ''
+    sending = true
+    try {
+      if (await live.sendChat(chatText.trim(), photo)) {
+        chatText = ''
+        dropPhoto()
+      }
+    } finally {
+      sending = false
+    }
   }
 
   // Открыли вкладку — сообщения прочитаны; держим ленту чата внизу.
@@ -75,15 +101,26 @@
       {#each s.chat as m (m.seq)}
         <div class="msg" class:host={m.from_host}>
           <div class="meta small muted">{m.author} · {hhmm(m.at)}</div>
-          <div class="bubble task">{m.text}</div>
+          <div class="bubble">
+            {#if m.media_url}<Pic src={m.media_url} cls="inline" />{/if}
+            {#if m.text}<div class="task">{m.text}</div>{/if}
+          </div>
         </div>
       {/each}
     </div>
   {/if}
   {#if s.is_captain}
+    {#if photoUrl}
+      <div class="attach row">
+        <img src={photoUrl} alt="" />
+        <button type="button" class="ghost small" onclick={dropPhoto}>Убрать фото</button>
+      </div>
+    {/if}
     <form class="row send" onsubmit={sendChat}>
+      <button type="button" class="ghost clip" title="Приложить фото" aria-label="Приложить фото" onclick={() => photoInput?.click()}>📷</button>
       <input class="grow" bind:value={chatText} placeholder="Сообщение ведущему" maxlength="1000" />
-      <button disabled={!chatText.trim()}>Отправить</button>
+      <button disabled={sending || (!chatText.trim() && !photo)}>{sending ? '…' : 'Отправить'}</button>
+      <input bind:this={photoInput} type="file" accept="image/*" hidden onchange={pickPhoto} />
     </form>
   {:else}
     <p class="muted small">Писать ведущему может капитан. Если срочно — кнопка «Нужна помощь».</p>
@@ -98,7 +135,8 @@
     {#each feed as m, i (i)}
       <div class="ann">
         <div class="small muted">{hhmm(m.at)}</div>
-        <div class="task">{m.text}</div>
+        {#if m.text}<div class="task">{m.text}</div>{/if}
+        {#if m.media_url}<div class="amedia"><Pic src={m.media_url} cls="inline" /></div>{/if}
       </div>
     {/each}
   {/if}
@@ -151,6 +189,22 @@
   }
   .msg.host .bubble {
     background: var(--accent-soft);
+  }
+  .attach {
+    margin-bottom: 0.5rem;
+  }
+  .attach img {
+    height: 64px;
+    width: 64px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  .clip {
+    padding: 0 0.6rem;
+    font-size: 1.2rem;
+  }
+  .amedia {
+    margin-top: 0.3rem;
   }
   .ann + .ann {
     border-top: 1px solid var(--line);

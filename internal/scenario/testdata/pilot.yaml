@@ -43,7 +43,7 @@ levels:
     task: |
       Найдите табличку с годом основания у входа в парк.
       Код — четыре цифры.
-    media: [img/start.jpg]
+    media: [start.jpg]
     points: 10
     answers:
       - type: code

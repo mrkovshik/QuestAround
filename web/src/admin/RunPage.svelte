@@ -13,6 +13,9 @@
   import ScenarioPanel from './ScenarioPanel.svelte'
   import SosBanner from './SosBanner.svelte'
   import Comms from './Comms.svelte'
+  import Photos from './Photos.svelte'
+  import AttachPhoto from './AttachPhoto.svelte'
+  import { compressImage } from '../lib/image'
 
   let { api, runId, onUnauthorized }: { api: AdminApi; runId: string; onUnauthorized: () => void } = $props()
 
@@ -20,11 +23,12 @@
   const live = new RunLive(api, runId)
   $effect(() => live.start())
 
-  let tab = $state<'dash' | 'reg' | 'mod' | 'comms' | 'table' | 'log'>('dash')
+  let tab = $state<'dash' | 'reg' | 'mod' | 'comms' | 'photos' | 'table' | 'log'>('dash')
   let chatTeam = $state<string | null>(null)
   let teamId = $state<string | null>(null)
   let showQR = $state(false)
   let message = $state('')
+  let msgPhoto = $state<File | null>(null)
 
   const d = $derived(live.dash)
   const run = $derived(live.run)
@@ -70,7 +74,14 @@
 
   async function send(e: SubmitEvent) {
     e.preventDefault()
-    if (await live.act(() => api.broadcast(runId, message.trim()), 'Сообщение отправлено')) message = ''
+    const ok = await live.act(async () => {
+      const key = msgPhoto ? (await api.upload(runId, await compressImage(msgPhoto))).key : undefined
+      return api.broadcast(runId, message.trim(), key)
+    }, 'Сообщение отправлено')
+    if (ok) {
+      message = ''
+      msgPhoto = null
+    }
   }
 
   async function copy(text: string) {
@@ -123,8 +134,9 @@
       <ScenarioPanel {live} {runId} />
       {#if d.run_status !== 'finished'}
         <form class="row msgform" onsubmit={send}>
+          <AttachPhoto bind:file={msgPhoto} />
           <input class="grow" bind:value={message} placeholder="Сообщение всем командам (появится у игроков сверху)" maxlength="500" />
-          <button class="secondary" disabled={!message.trim()}>Отправить всем</button>
+          <button class="secondary" disabled={!message.trim() && !msgPhoto}>Отправить всем</button>
         </form>
       {/if}
     </section>
@@ -147,6 +159,9 @@
       <button class:active={tab === 'comms'} onclick={() => (tab = 'comms')}>
         Связь{#if chatUnread && tab !== 'comms'}<span class="counter">{chatUnread}</span>{/if}
       </button>
+      <button class:active={tab === 'photos'} onclick={() => (tab = 'photos')}>
+        Фото{#if live.photos.length}<span class="muted small">&nbsp;{live.photos.length}</span>{/if}
+      </button>
       <button class:active={tab === 'table'} onclick={() => (tab = 'table')}>Таблица</button>
       <button class:active={tab === 'log'} onclick={() => (tab = 'log')}>Журнал</button>
     </nav>
@@ -159,6 +174,8 @@
       <Moderation {live} {runId} />
     {:else if tab === 'comms'}
       <Comms {live} {runId} bind:teamId={chatTeam} />
+    {:else if tab === 'photos'}
+      <Photos {live} {runId} onOpen={(id) => (teamId = id)} />
     {:else if tab === 'table'}
       <Standings {live} {runId} />
     {:else}

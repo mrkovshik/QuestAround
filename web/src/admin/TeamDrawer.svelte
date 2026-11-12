@@ -1,5 +1,6 @@
 <script lang="ts">
   import { clock } from '../lib/format'
+  import Pic from '../components/Pic.svelte'
   import type { DashTeam } from './adminApi'
   import type { RunLive } from './runLive.svelte'
   import { between, hhmm, since, TEAM_STATUS, FINISH_REASON } from './time'
@@ -105,6 +106,7 @@
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Escape') onClose()
   }
+  const teamPhotos = $derived([...live.photos.filter((p) => p.team_id === team.id)].reverse())
 </script>
 
 <svelte:window onkeydown={onKey} />
@@ -193,6 +195,19 @@
     {/if}
   </section>
 
+  {#if teamPhotos.length}
+    <section>
+      <h3>Фото ({teamPhotos.length})</h3>
+      <div class="photos">
+        {#each teamPhotos as p (p.seq)}
+          <div class:rej={p.status === 'rejected'} title="{p.title}{p.status === 'rejected' ? ' — отклонено' : p.status === 'pending' ? ' — на проверке' : ''}">
+            <Pic src={p.url} cls="thumb" alt={p.title} />
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
   {#if playing}
     <section class="stack">
       <h3>Ввести код за команду</h3>
@@ -258,6 +273,14 @@
 </aside>
 
 <style>
+  .photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 0.4rem;
+  }
+  .photos .rej {
+    opacity: 0.4;
+  }
   .backdrop {
     position: fixed;
     inset: 0;

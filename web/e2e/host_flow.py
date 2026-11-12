@@ -35,6 +35,14 @@ def png(path):
 
 PHOTO = os.path.join(SHOTS, "host-photo.png")
 png(PHOTO)
+GATE = os.path.join(SHOTS, "gate.png")
+png(GATE)
+# демо-сценарий с картинкой у первого уровня и у подсказки по запросу
+DEMO = (open(os.path.join(HERE, "demo.yaml"), encoding="utf-8").read()
+        .replace('    points: 10\n    answers: [{type: code, values: ["1864"]}]',
+                 '    media: [gate.png]\n    points: 10\n    answers: [{type: code, values: ["1864"]}]', 1)
+        .replace("text: Ищите на каменном столбе.}", "text: Ищите на каменном столбе., media: [gate.png]}"))
+assert DEMO.count("gate.png") == 2
 errors = []
 
 
@@ -64,8 +72,16 @@ with sync_playwright() as p:
     expect(host.locator(".issues")).to_contain_text("строка 7")
     host.screenshot(path=f"{SHOTS}/h01-scenario-errors.png")
 
+    # --- картинки: сценарий ссылается на незагруженную — ошибка; загружаем в библиотеку ---
+    host.fill("textarea", DEMO)
+    host.click("text=Проверить и сохранить")
+    expect(host.locator(".issues")).to_contain_text('картинка "gate.png" не загружена')
+    host.set_input_files("section:has(h2:has-text('Картинки')) input[type=file]", GATE)
+    expect(host.locator("figcaption", has_text="gate.png")).to_be_visible()
+    host.screenshot(path=f"{SHOTS}/h01a-assets.png", full_page=True)
+
     # --- нормальный сценарий и игра ---
-    host.fill("textarea", open(os.path.join(HERE, "demo.yaml"), encoding="utf-8").read())
+    host.fill("textarea", DEMO)
     host.click("text=Проверить и сохранить")
     expect(host.locator(".notice", has_text="Загружено")).to_be_visible()
     host.fill("#title", "Горячий Ключ: пилот, 29 ноября")
@@ -83,6 +99,7 @@ with sync_playwright() as p:
     phone = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="ru-RU")
     pl = phone.new_page()
     pl.on("pageerror", lambda e: errors.append(f"player: {e}"))
+    pl.on("dialog", lambda d: d.accept())
     pl.goto(f"{BASE}/g/{code}")
     pl.click("text=Создать команду")
     pl.fill("#team", "Ёжики")
@@ -95,7 +112,7 @@ with sync_playwright() as p:
 
     # --- ведущий правит сценарий после анонса и меняет его в игре ---
     host.click("a.brand")
-    fixed = open(os.path.join(HERE, "demo.yaml"), encoding="utf-8").read().replace("title: Сбор у парка", "title: Сбор у главного входа")
+    fixed = DEMO.replace("title: Сбор у парка", "title: Сбор у главного входа")
     host.fill("textarea", fixed)
     host.click("text=Проверить и сохранить")
     expect(host.locator(".notice", has_text="версия 2")).to_be_visible()
@@ -113,6 +130,10 @@ with sync_playwright() as p:
     host.click(".tabs >> text=Команды")
     expect(host.locator("tbody tr")).to_have_count(2)
     expect(pl.locator("h2", has_text="Сбор у главного входа")).to_be_visible(timeout=5000)
+    # картинка задания загрузилась
+    img = pl.locator(".level .media img").first
+    expect(img).to_be_visible()
+    pl.wait_for_function("img => img.complete && img.naturalWidth > 0", arg=img.element_handle())
 
     # --- игрок: неверный код, фото-бонус ---
     pl.fill(".codebar input", "0000")
@@ -131,6 +152,26 @@ with sync_playwright() as p:
     note(host, "Принято")
     expect(host.locator("text=Очередь пуста")).to_be_visible()
     expect(pl.locator(".badge", has_text="+5").first).to_be_visible(timeout=5000)
+
+    # --- подсказка с картинкой: до открытия картинки нет ---
+    expect(pl.locator(".hint .hmedia img")).to_have_count(0)
+    pl.click("text=Взять подсказку 2")
+    expect(pl.locator(".hint .hmedia img")).to_be_visible(timeout=5000)
+    pl.screenshot(path=f"{SHOTS}/p-hint-media.png", full_page=True)
+
+    # --- галерея фото ---
+    host.click(".tabs >> text=Фото")
+    expect(host.locator("figure")).to_have_count(1)
+    expect(host.locator("figure")).to_contain_text("принято")
+    expect(host.locator("figure")).to_contain_text("бонус «Селфи всей командой у ворот»")
+    zhref = host.locator("a:has-text('Скачать все')").get_attribute("href")
+    zr = host.request.get(BASE + zhref)
+    assert zr.status == 200 and zr.headers["content-type"] == "application/zip" and zr.body()[:2] == b"PK", zr.status
+    host.locator("figure .pic").click()
+    expect(host.locator(".lightbox img")).to_be_visible()
+    host.screenshot(path=f"{SHOTS}/h04a-gallery.png")
+    host.keyboard.press("Escape")
+    expect(host.locator(".lightbox")).to_have_count(0)
 
     # --- правка сценария во время игры: структуру нельзя, текст можно ---
     host.click("a.brand")
@@ -174,11 +215,13 @@ with sync_playwright() as p:
     host.fill("input[placeholder^='Сообщение всем']", "Через 20 минут сбор у фонтана")
     host.click("text=Отправить всем")
     expect(pl.locator(".msg")).to_contain_text("сбор у фонтана", timeout=5000)
+    host.set_input_files("form.msgform input[type=file]", PHOTO)
     host.fill("input[placeholder^='Сообщение всем']", "Не забудьте воду")
     host.click("text=Отправить всем")
     # оба сообщения видны лентой, пока игрок не отметит «Прочитано»
     expect(pl.locator(".msg")).to_contain_text("Новые сообщения ведущего: 2", timeout=5000)
     expect(pl.locator(".msg")).to_contain_text("сбор у фонтана")
+    expect(pl.locator(".msg .umedia img")).to_be_visible()
     pl.click(".msg >> text=Прочитано")
     expect(pl.locator(".msg")).to_have_count(0)
 
@@ -191,11 +234,14 @@ with sync_playwright() as p:
     phone.set_geolocation({"latitude": 44.4875, "longitude": 39.2321, "accuracy": 12})
     pl.click("nav >> text=Связь")
     expect(pl.locator(".contact a")).to_have_text("+7 900 123-45-67", timeout=5000)
+    pl.set_input_files("form.send input[type=file]", PHOTO)
+    expect(pl.locator(".attach img")).to_be_visible()
     pl.fill("input[placeholder='Сообщение ведущему']", "Тут закрыт проход, обходим?")
-    pl.click("form.send button")
+    pl.click("form.send button:has-text('Отправить')")
     expect(host.locator(".item:has-text('Ёжики') .counter")).to_have_text("1", timeout=5000)
     host.click(".item:has-text('Ёжики')")
     expect(host.locator(".bubble", has_text="закрыт проход")).to_be_visible()
+    expect(host.locator(".bubble", has_text="закрыт проход").locator("img")).to_be_visible()
     host.fill("input[placeholder^='Ответ команде']", "Да, обходите справа")
     host.press("input[placeholder^='Ответ команде']", "Enter")
     expect(pl.locator(".bubble", has_text="обходите справа")).to_be_visible(timeout=5000)

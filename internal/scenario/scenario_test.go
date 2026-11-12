@@ -449,3 +449,33 @@ func TestAllErrorsReportedAtOnce(t *testing.T) {
 		t.Fatalf("ожидали ≥3 ошибок за один проход, получили: %v", err)
 	}
 }
+
+func TestMedia(t *testing.T) {
+	src := head + `levels:
+  - id: a
+    task: x
+    media: [park.jpg, "https://example.com/a.png"]
+    answers: [{type: code, values: ["1"]}]
+    hints:
+      - {after: 5m, media: [hint.webp]}
+    bonuses:
+      - {id: b, title: b, media: [Bonus Фото.JPG], answer: {type: photo}}
+`
+	sc, err := Parse([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sc.Levels[0].Hints[0].Media; len(got) != 1 || got[0] != "hint.webp" {
+		t.Errorf("media подсказки: %v", got)
+	}
+	have := map[string]bool{"park.jpg": true, "hint.webp": true}
+	_, err = ParseWith([]byte(src), Options{MediaExists: func(n string) bool { return have[n] }})
+	var errs Errors
+	if !errors.As(err, &errs) || len(errs) != 1 || !strings.Contains(errs[0].Error(), `"Bonus Фото.JPG" не загружена`) || errs[0].Line != 12 {
+		t.Errorf("ожидали одну ошибку про Bonus Фото.JPG в строке 12, получили %v", err)
+	}
+	_, err = Parse([]byte(head + "levels: [{id: a, task: x, media: [park.bmp], answers: [{type: photo}]}]\n"))
+	if err == nil || !strings.Contains(err.Error(), "ожидалось имя картинки") {
+		t.Errorf("park.bmp: %v", err)
+	}
+}

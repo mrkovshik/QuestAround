@@ -1,8 +1,16 @@
 // API ведущего. Зеркало DTO из internal/httpapi (admin.go, views.go).
 
-import { ApiError, type ChatMsg, type Player, type ScoreItem, type Sos, type Standing } from '../lib/api'
+import { ApiError, type ChatMsg, type Photo, type Player, type ScoreItem, type Sos, type Standing } from '../lib/api'
 
-export type { ChatMsg, Sos }
+export type { ChatMsg, Photo, Sos }
+
+export interface Asset {
+  name: string
+  key: string
+  size: number
+  at: string
+  url: string
+}
 
 export interface ScenarioVersion {
   id: string
@@ -73,7 +81,7 @@ export interface Dashboard {
   teams: DashTeam[]
   withdrawn?: { id: string; name: string; players: Player[] }[]
   standings: Standing[]
-  messages: { at: string; text: string }[]
+  messages: { at: string; text: string; media_url?: string }[]
 }
 
 export interface ModerationItem {
@@ -131,7 +139,9 @@ export class AdminApi {
   private async req<T>(method: string, path: string, body?: unknown, raw?: string): Promise<T> {
     const headers: Record<string, string> = { Authorization: `Bearer ${this.token}` }
     let payload: BodyInit | undefined
-    if (raw !== undefined) {
+    if (body instanceof FormData) {
+      payload = body
+    } else if (raw !== undefined) {
       headers['Content-Type'] = 'application/yaml'
       payload = raw
     } else if (body !== undefined) {
@@ -179,11 +189,28 @@ export class AdminApi {
   moderate = (run: string, seq: number, approved: boolean, comment = '') =>
     this.req<ModerationItem[]>('POST', `/runs/${run}/moderation/${seq}`, { approved, comment })
   setLeaderboard = (run: string, visible: boolean | null) => this.req<Dashboard>('PUT', `/runs/${run}/leaderboard`, { visible })
-  teamChat = (run: string, team: string, text: string) =>
-    this.req<Dashboard>('POST', `/runs/${run}/teams/${team}/chat`, { text })
+  teamChat = (run: string, team: string, text: string, media_key?: string) =>
+    this.req<Dashboard>('POST', `/runs/${run}/teams/${team}/chat`, { text, media_key })
   resolveSOS = (run: string, seq: number, note: string) => this.req<Dashboard>('POST', `/runs/${run}/sos/${seq}/resolve`, { note })
   setHostContact = (run: string, text: string) => this.req<Dashboard>('PUT', `/runs/${run}/contact`, { text })
-  broadcast = (run: string, text: string) => this.req<Dashboard>('POST', `/runs/${run}/broadcast`, { text })
+  broadcast = (run: string, text: string, media_key?: string) =>
+    this.req<Dashboard>('POST', `/runs/${run}/broadcast`, { text, media_key })
+  /** Фото к сообщению: сначала загрузить, потом отправить сообщение с ключом. */
+  upload = (run: string, photo: Blob) => {
+    const f = new FormData()
+    f.append('photo', photo, 'photo.jpg')
+    return this.req<{ key: string; url: string }>('POST', `/runs/${run}/uploads`, f)
+  }
+  photos = (run: string) => this.req<Photo[]>('GET', `/runs/${run}/photos`)
+  photosZip = (run: string, all: boolean) =>
+    `/admin/v1/runs/${run}/photos.zip?token=${encodeURIComponent(this.token)}${all ? '&all=1' : ''}`
+  assets = () => this.req<Asset[]>('GET', '/assets')
+  uploadAssets = (files: { name: string; blob: Blob }[]) => {
+    const f = new FormData()
+    files.forEach((x) => f.append('file', x.blob, x.name))
+    return this.req<Asset[]>('POST', '/assets', f)
+  }
+  deleteAsset = (name: string) => this.req<void>('DELETE', `/assets/${encodeURIComponent(name)}`)
   events = (run: string) => this.req<JournalEvent[]>('GET', `/runs/${run}/events`)
 
   /** Фото с модерации: <img> не умеет заголовок Authorization — берём blob. */

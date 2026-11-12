@@ -84,10 +84,10 @@ func (g *Game) Handle(now time.Time, cmd Command) (Outcome, error) {
 	case SetLeaderboard:
 		t.emit("", "", "", LeaderboardVisibilitySet{Visible: c.Visible})
 	case SendBroadcast:
-		if strings.TrimSpace(c.Text) == "" {
+		if strings.TrimSpace(c.Text) == "" && c.MediaKey == "" {
 			err = ErrBadCommand
 		} else {
-			t.emit("", "", "", Broadcast{Text: c.Text})
+			t.emit("", "", "", Broadcast{Text: strings.TrimSpace(c.Text), MediaKey: c.MediaKey})
 		}
 	case ApproveResults:
 		if g.Status != RunStatusFinished {

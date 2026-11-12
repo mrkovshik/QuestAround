@@ -178,7 +178,8 @@ type LeaderboardVisibilitySet struct {
 type LeaderboardFrozen struct{}
 
 type Broadcast struct {
-	Text string `json:"text"`
+	Text     string `json:"text"`
+	MediaKey string `json:"media_key,omitempty"`
 }
 
 // ResultsApproved — ведущий утвердил итоги: таблица на этот момент
