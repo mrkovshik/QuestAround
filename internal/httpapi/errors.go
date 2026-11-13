@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"questaround/internal/core"
+	"questaround/internal/runner"
 	"questaround/internal/scenario"
 	"questaround/internal/store"
 )
@@ -50,6 +51,8 @@ var errorTable = []struct {
 	{core.ErrRunStarted, 409, "run_started"},
 	{core.ErrRunNotRunning, 409, "run_not_running"},
 	{core.ErrRunNotFinished, 409, "run_not_finished"},
+	{runner.ErrRunInProgress, 409, "run_in_progress"},
+	{runner.ErrNotInTrash, 409, "not_in_trash"},
 	{core.ErrNoTeams, 409, "no_teams"},
 	{core.ErrTeamExists, 409, "team_exists"},
 	{core.ErrTeamNotPlaying, 409, "team_not_playing"},

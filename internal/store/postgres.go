@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -219,19 +220,23 @@ func (p *Postgres) ListScenarioVersions(ctx context.Context, orgID string) ([]Sc
 	return out, rows.Err()
 }
 
-const runColumns = `id, org_id, scenario_version_id, title, public_code, seed, created_at`
+const runColumns = `id, org_id, scenario_version_id, title, public_code, seed, created_at, deleted_at`
 
 func scanRun(row pgx.Row) (Run, error) {
 	var (
 		r    Run
 		seed int64
 	)
-	err := row.Scan(&r.ID, &r.OrgID, &r.ScenarioVersionID, &r.Title, &r.PublicCode, &seed, &r.CreatedAt)
+	err := row.Scan(&r.ID, &r.OrgID, &r.ScenarioVersionID, &r.Title, &r.PublicCode, &seed, &r.CreatedAt, &r.DeletedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrNotFound
 	}
 	r.Seed = uint64(seed)
 	r.CreatedAt = r.CreatedAt.UTC()
+	if r.DeletedAt != nil {
+		t := r.DeletedAt.UTC()
+		r.DeletedAt = &t
+	}
 	return r, err
 }
 
@@ -277,11 +282,49 @@ func (p *Postgres) SetRunScenario(ctx context.Context, runID, versionID string) 
 }
 
 func (p *Postgres) GetRunByCode(ctx context.Context, code string) (Run, error) {
-	return scanRun(p.pool.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE public_code = $1`, code))
+	return scanRun(p.pool.QueryRow(ctx, `SELECT `+runColumns+` FROM runs WHERE public_code = $1 AND deleted_at IS NULL`, code))
 }
 
 func (p *Postgres) ListRuns(ctx context.Context, orgID string) ([]Run, error) {
-	rows, err := p.pool.Query(ctx, `SELECT `+runColumns+` FROM runs WHERE org_id = $1 ORDER BY created_at DESC`, orgID)
+	return p.listRuns(ctx, `SELECT `+runColumns+` FROM runs WHERE org_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`, orgID)
+}
+
+func (p *Postgres) ListDeletedRuns(ctx context.Context, orgID string) ([]Run, error) {
+	return p.listRuns(ctx, `SELECT `+runColumns+` FROM runs WHERE org_id = $1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC`, orgID)
+}
+
+func (p *Postgres) SetRunDeleted(ctx context.Context, runID string, at *time.Time) error {
+	tag, err := p.pool.Exec(ctx, `UPDATE runs SET deleted_at = $2 WHERE id = $1`, runID, at)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (p *Postgres) PurgeRun(ctx context.Context, runID string) error {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `DELETE FROM events WHERE run_id = $1`, runID); err != nil {
+		return err
+	}
+	tag, err := tx.Exec(ctx, `DELETE FROM runs WHERE id = $1`, runID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return tx.Commit(ctx)
+}
+
+func (p *Postgres) listRuns(ctx context.Context, query string, orgID string) ([]Run, error) {
+	rows, err := p.pool.Query(ctx, query, orgID)
 	if err != nil {
 		return nil, err
 	}

@@ -147,6 +147,46 @@ func (m *Memory) GetRun(_ context.Context, id string) (Run, error) {
 	return r, nil
 }
 
+func (m *Memory) ListDeletedRuns(_ context.Context, orgID string) ([]Run, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []Run
+	for _, r := range m.runs {
+		if r.OrgID == orgID && r.DeletedAt != nil {
+			out = append(out, r)
+		}
+	}
+	slices.SortFunc(out, func(a, b Run) int { return b.DeletedAt.Compare(*a.DeletedAt) })
+	return out, nil
+}
+
+func (m *Memory) SetRunDeleted(_ context.Context, runID string, at *time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, ok := m.runs[runID]
+	if !ok {
+		return ErrNotFound
+	}
+	if at != nil {
+		t := at.UTC().Truncate(time.Microsecond)
+		at = &t
+	}
+	r.DeletedAt = at
+	m.runs[runID] = r
+	return nil
+}
+
+func (m *Memory) PurgeRun(_ context.Context, runID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.runs[runID]; !ok {
+		return ErrNotFound
+	}
+	delete(m.runs, runID)
+	delete(m.events, runID)
+	return nil
+}
+
 func (m *Memory) SetRunScenario(_ context.Context, runID, versionID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -166,7 +206,7 @@ func (m *Memory) GetRunByCode(_ context.Context, code string) (Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, r := range m.runs {
-		if r.PublicCode == code {
+		if r.PublicCode == code && r.DeletedAt == nil {
 			return r, nil
 		}
 	}
@@ -178,7 +218,7 @@ func (m *Memory) ListRuns(_ context.Context, orgID string) ([]Run, error) {
 	defer m.mu.Unlock()
 	var out []Run
 	for _, r := range m.runs {
-		if r.OrgID == orgID {
+		if r.OrgID == orgID && r.DeletedAt == nil {
 			out = append(out, r)
 		}
 	}

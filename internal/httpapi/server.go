@@ -26,6 +26,8 @@ type Config struct {
 	SSEKeepAlive time.Duration
 	// Static — фронтенд (PWA); отдаётся на все пути вне API. nil — не отдаётся.
 	Static http.Handler
+	// TrashRetention — сколько удалённая игра лежит в корзине (по умолчанию 30 дней).
+	TrashRetention time.Duration
 }
 
 type Server struct {
@@ -111,6 +113,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("DELETE /admin/v1/assets/{name}", a(s.deleteAsset))
 	mux.Handle("POST /admin/v1/runs/{run}/uploads", a(s.hostUpload))
 	mux.Handle("GET /admin/v1/runs/{run}/photos", a(s.photos))
+	mux.Handle("DELETE /admin/v1/runs/{run}", a(s.deleteRun))
+	mux.Handle("POST /admin/v1/runs/{run}/restore", a(s.restoreRun))
+	mux.Handle("DELETE /admin/v1/trash/{run}", a(s.purgeRun))
+	mux.Handle("GET /admin/v1/trash", a(s.listTrash))
 	mux.Handle("GET /admin/v1/runs/{run}/photos.zip", a(s.photosZip))
 
 	// Файлы по неугадываемому ключу — без авторизации, чтобы <img> и офлайн-кэш работали просто.

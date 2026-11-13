@@ -21,6 +21,17 @@ export interface ScenarioVersion {
   source?: string
 }
 
+export interface TrashedRun {
+  id: string
+  title: string
+  public_code: string
+  created_at: string
+  deleted_at: string
+  purge_at: string
+  teams: number
+  started: boolean
+}
+
 export interface Run {
   id: string
   title: string
@@ -160,6 +171,10 @@ export class AdminApi {
   }
 
   runs = () => this.req<Run[]>('GET', '/runs')
+  deleteRun = (id: string) => this.req<void>('DELETE', `/runs/${id}`)
+  restoreRun = (id: string) => this.req<Run>('POST', `/runs/${id}/restore`)
+  trash = () => this.req<TrashedRun[]>('GET', '/trash')
+  purgeRun = (id: string) => this.req<void>('DELETE', `/trash/${id}`)
   run = (id: string) => this.req<Run>('GET', `/runs/${id}`)
   createRun = (scenario_version_id: string, title: string) => this.req<Run>('POST', '/runs', { scenario_version_id, title })
   scenarios = () => this.req<ScenarioVersion[]>('GET', '/scenarios')

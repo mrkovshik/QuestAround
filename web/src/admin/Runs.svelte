@@ -1,13 +1,15 @@
 <script lang="ts">
   import { ApiError } from '../lib/api'
   import { router } from '../lib/router.svelte'
-  import { ScenarioError, type AdminApi, type Run, type ScenarioIssue, type ScenarioVersion } from './adminApi'
+  import { ScenarioError, type AdminApi, type Run, type ScenarioIssue, type ScenarioVersion, type TrashedRun } from './adminApi'
   import { RUN_STATUS } from './time'
   import Assets from './Assets.svelte'
 
   let { api, onUnauthorized }: { api: AdminApi; onUnauthorized: () => void } = $props()
 
   let runs = $state<Run[]>([])
+  let trash = $state<TrashedRun[]>([])
+  let showTrash = $state(false)
   let scenarios = $state<ScenarioVersion[]>([])
   let error = $state<string | null>(null)
 
@@ -22,7 +24,7 @@
 
   async function load() {
     try {
-      ;[runs, scenarios] = await Promise.all([api.runs(), api.scenarios()])
+      ;[runs, scenarios, trash] = await Promise.all([api.runs(), api.scenarios(), api.trash()])
       if (!versionId && scenarios.length) versionId = scenarios[0].id
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) onUnauthorized()
@@ -72,6 +74,36 @@
     }
   }
 
+  const day = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+
+  async function act(f: () => Promise<unknown>) {
+    error = null
+    try {
+      await f()
+    } catch (e) {
+      error = e instanceof ApiError ? e.message : 'Нет связи с сервером'
+    }
+    await load()
+  }
+
+  function remove(r: Run, e: Event) {
+    e.stopPropagation()
+    const what = r.teams ? ` В ней ${r.teams} ${plural(r.teams, 'команда', 'команды', 'команд')}.` : ''
+    if (!confirm(`Удалить игру «${r.title}»?${what}\n\nОна пропадёт из списка, ссылка и вход для игроков перестанут работать. ` +
+      `30 дней игру можно восстановить из корзины, потом она сотрётся вместе с фото.`)) return
+    act(() => api.deleteRun(r.id))
+  }
+
+  function purge(r: TrashedRun) {
+    if (!confirm(`Стереть «${r.title}» навсегда? Журнал и фото удалятся, восстановить будет нельзя.`)) return
+    act(() => api.purgeRun(r.id))
+  }
+
+  const plural = (n: number, one: string, few: string, many: string) => {
+    const m10 = n % 10, m100 = n % 100
+    return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many
+  }
+
   const fmt = (iso: string) => new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 </script>
 
@@ -85,7 +117,7 @@
     {:else}
       <table class="grid">
         <thead>
-          <tr><th>Название</th><th>Код</th><th>Статус</th><th class="num">Команд</th><th>Создана</th></tr>
+          <tr><th>Название</th><th>Код</th><th>Статус</th><th class="num">Команд</th><th>Создана</th><th></th></tr>
         </thead>
         <tbody>
           {#each runs as r (r.id)}
@@ -97,10 +129,45 @@
               </td>
               <td class="num">{r.teams}</td>
               <td>{fmt(r.created_at)}</td>
+              <td class="act">
+                {#if r.status === 'running'}
+                  <span class="muted small" title="Сначала завершите игру">идёт</span>
+                {:else}
+                  <button class="ghost small del" title="Удалить в корзину" onclick={(e) => remove(r, e)}>Удалить</button>
+                {/if}
+              </td>
             </tr>
           {/each}
         </tbody>
       </table>
+    {/if}
+    {#if trash.length}
+      <button class="ghost small trashbtn" onclick={() => (showTrash = !showTrash)}>
+        {showTrash ? '▾' : '▸'} Корзина ({trash.length})
+      </button>
+      {#if showTrash}
+        <table class="grid trash">
+          <thead>
+            <tr><th>Название</th><th>Код</th><th class="num">Команд</th><th>Удалена</th><th>Сотрётся</th><th></th></tr>
+          </thead>
+          <tbody>
+            {#each trash as r (r.id)}
+              <tr>
+                <td>{r.title}{#if !r.started}<span class="muted small"> · не начиналась</span>{/if}</td>
+                <td class="mono">{r.public_code}</td>
+                <td class="num">{r.teams}</td>
+                <td>{fmt(r.deleted_at)}</td>
+                <td>{day(r.purge_at)}</td>
+                <td class="act">
+                  <button class="ghost small" onclick={() => act(() => api.restoreRun(r.id))}>Восстановить</button>
+                  <button class="ghost small del" onclick={() => purge(r)}>Стереть сейчас</button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        <p class="muted small">Игры в корзине не видны игрокам. Через 30 дней после удаления они стираются автоматически вместе с фото.</p>
+      {/if}
     {/if}
   </section>
 
@@ -156,6 +223,21 @@
 </div>
 
 <style>
+  .act {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .del {
+    color: var(--bad);
+  }
+  .trashbtn {
+    margin-top: 1rem;
+  }
+  .trash {
+    margin-top: 0.5rem;
+    opacity: 0.85;
+  }
+
   .issues {
     background: var(--bad-soft);
     border-radius: 10px;

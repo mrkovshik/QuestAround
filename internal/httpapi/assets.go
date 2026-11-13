@@ -282,6 +282,8 @@ func (s *Server) photosZip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	all := r.URL.Query().Get("all") == "1"
+	// архив может качаться долго по мобильной сети — снимаем общий дедлайн записи
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="photos.zip"; filename*=UTF-8''%s.zip`,
 		urlPathEscape(safeName(title, "фото"))))

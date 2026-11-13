@@ -52,6 +52,7 @@ type Run struct {
 	PublicCode        string // короткий код для ссылки /g/{code}
 	Seed              uint64
 	CreatedAt         time.Time
+	DeletedAt         *time.Time // в корзине; nil — живая игра
 }
 
 // NewRun — параметры создания игры; ID, код и seed генерирует хранилище.
@@ -76,7 +77,14 @@ type Store interface {
 	GetRunByCode(ctx context.Context, code string) (Run, error)
 	// SetRunScenario меняет версию сценария игры (проверка «до старта» — на вызывающем).
 	SetRunScenario(ctx context.Context, runID, scenarioVersionID string) error
+	// ListRuns — игры организации без удалённых, новые сверху.
 	ListRuns(ctx context.Context, orgID string) ([]Run, error)
+	// ListDeletedRuns — корзина: удалённые игры, недавно удалённые сверху.
+	ListDeletedRuns(ctx context.Context, orgID string) ([]Run, error)
+	// SetRunDeleted кладёт игру в корзину (at != nil) или достаёт из неё (nil).
+	SetRunDeleted(ctx context.Context, runID string, at *time.Time) error
+	// PurgeRun стирает игру и её журнал навсегда.
+	PurgeRun(ctx context.Context, runID string) error
 }
 
 // checkSeq проверяет, что events продолжают журнал, где последний Seq = last.

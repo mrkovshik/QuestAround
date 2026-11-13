@@ -50,6 +50,8 @@ levels:
 `
 
 type testServer struct {
+	api      *Server
+	mediaDir string
 	t   *testing.T
 	srv *httptest.Server
 }
@@ -60,10 +62,11 @@ func newTestServer(t *testing.T) *testServer {
 	t.Cleanup(cancel)
 	st := store.NewMemory()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mediaDir := t.TempDir()
 	api := New(Config{
 		Store:        st,
 		Runners:      runner.NewManager(ctx, st, runner.RealClock{}, log),
-		Media:        &DiskMedia{Dir: t.TempDir()},
+		Media:        &DiskMedia{Dir: mediaDir},
 		AdminToken:   adminToken,
 		Logger:       log,
 		SSEKeepAlive: time.Hour,
@@ -74,7 +77,7 @@ func newTestServer(t *testing.T) *testServer {
 	srv := httptest.NewServer(api.Handler())
 	t.Cleanup(srv.Close)
 	t.Cleanup(cancel) // сначала закрыть SSE-подписки, потом сервер
-	return &testServer{t: t, srv: srv}
+	return &testServer{t: t, srv: srv, api: api, mediaDir: mediaDir}
 }
 
 type resp struct {

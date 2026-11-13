@@ -34,6 +34,8 @@ type MediaStore interface {
 	DeleteAsset(ctx context.Context, name string) error
 	// AssetKey — ключ файла для имени из сценария.
 	AssetKey(name string) (string, bool)
+	// DeleteRun стирает все фото игры.
+	DeleteRun(ctx context.Context, runID string) error
 }
 
 // Asset — картинка в библиотеке сценариев.
@@ -249,3 +251,12 @@ func (d *DiskMedia) AssetKey(name string) (string, bool) {
 	a, ok := d.index[name]
 	return a.Key, ok
 }
+
+func (d *DiskMedia) DeleteRun(_ context.Context, runID string) error {
+	if !idRe.MatchString(runID) || runID == "assets" {
+		return fmt.Errorf("плохой id игры %q", runID)
+	}
+	return os.RemoveAll(filepath.Join(d.Dir, runID))
+}
+
+var idRe = regexp.MustCompile(`^[a-z0-9]+$`)

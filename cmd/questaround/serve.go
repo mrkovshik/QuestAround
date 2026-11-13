@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"os/signal"
 	"syscall"
 	"time"
@@ -18,6 +19,13 @@ import (
 	"questaround/internal/store"
 	"questaround/internal/webui"
 )
+
+func envInt(key string, def int) int {
+	if v, err := strconv.Atoi(os.Getenv(key)); err == nil && v > 0 {
+		return v
+	}
+	return def
+}
 
 func env(key, def string) string {
 	if v := os.Getenv(key); v != "" {
@@ -32,6 +40,7 @@ func cmdServe(args []string) error {
 	dsn := fs.String("db", env("QUESTAROUND_DATABASE_URL", ""), "Postgres DSN; пусто — хранение в памяти (только для разработки)")
 	mediaDir := fs.String("media", env("QUESTAROUND_MEDIA_DIR", "./data/media"), "каталог для фото")
 	adminToken := fs.String("admin-token", env("QUESTAROUND_ADMIN_TOKEN", ""), "токен ведущего (обязателен)")
+	trashDays := fs.Int("trash-days", envInt("QUESTAROUND_TRASH_DAYS", 30), "сколько дней удалённая игра лежит в корзине")
 	debug := fs.Bool("debug", os.Getenv("QUESTAROUND_DEBUG") != "", "подробные логи")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -74,7 +83,10 @@ func cmdServe(args []string) error {
 		AdminToken: *adminToken,
 		Logger:     log,
 		Static:     webui.Handler(),
+
+		TrashRetention: time.Duration(*trashDays) * 24 * time.Hour,
 	})
+	go api.RunJanitor(runnersCtx)
 
 	srv := &http.Server{
 		Addr:              *addr,

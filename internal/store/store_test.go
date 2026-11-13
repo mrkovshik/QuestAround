@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -227,6 +228,64 @@ func TestScenarioVersionsAndRuns(t *testing.T) {
 		}
 		if _, err := s.CreateRun(ctx, NewRun{OrgID: DefaultOrg, ScenarioVersionID: "nope"}); !errors.Is(err, ErrNotFound) {
 			t.Errorf("run без сценария: ожидали ErrNotFound, получили %v", err)
+		}
+	})
+}
+
+func TestRunTrash(t *testing.T) {
+	forEachStore(t, func(t *testing.T, s Store) {
+		ctx := context.Background()
+		sv, err := s.SaveScenarioVersion(ctx, DefaultOrg, "trash-"+newID(), "a: 1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := s.CreateRun(ctx, NewRun{OrgID: DefaultOrg, ScenarioVersionID: sv.ID, Title: "Тест"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Append(ctx, r.ID, []core.Event{{Seq: 1, Type: core.EvBroadcast, At: at, Payload: core.Broadcast{Text: "x"}}}); err != nil {
+			t.Fatal(err)
+		}
+		has := func(list []Run) bool {
+			return slices.ContainsFunc(list, func(x Run) bool { return x.ID == r.ID })
+		}
+
+		del := at.Add(time.Hour)
+		if err := s.SetRunDeleted(ctx, r.ID, &del); err != nil {
+			t.Fatal(err)
+		}
+		live, _ := s.ListRuns(ctx, DefaultOrg)
+		trash, _ := s.ListDeletedRuns(ctx, DefaultOrg)
+		if has(live) || !has(trash) {
+			t.Fatalf("после удаления: в списке %v, в корзине %v", has(live), has(trash))
+		}
+		if _, err := s.GetRunByCode(ctx, r.PublicCode); !errors.Is(err, ErrNotFound) {
+			t.Errorf("код удалённой игры должен не находиться: %v", err)
+		}
+		got, err := s.GetRun(ctx, r.ID)
+		if err != nil || got.DeletedAt == nil || !got.DeletedAt.Equal(del) {
+			t.Fatalf("GetRun удалённой: %+v, %v", got.DeletedAt, err)
+		}
+
+		if err := s.SetRunDeleted(ctx, r.ID, nil); err != nil {
+			t.Fatal(err)
+		}
+		live, _ = s.ListRuns(ctx, DefaultOrg)
+		if !has(live) {
+			t.Fatal("восстановленная игра не вернулась в список")
+		}
+
+		if err := s.PurgeRun(ctx, r.ID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.GetRun(ctx, r.ID); !errors.Is(err, ErrNotFound) {
+			t.Errorf("после очистки: %v", err)
+		}
+		if evs, _ := s.Load(ctx, r.ID); len(evs) != 0 {
+			t.Errorf("журнал остался: %d событий", len(evs))
+		}
+		if err := s.PurgeRun(ctx, r.ID); !errors.Is(err, ErrNotFound) {
+			t.Errorf("повторная очистка: %v", err)
 		}
 	})
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ApiError } from '../lib/api'
+  import { router } from '../lib/router.svelte'
   import QR from '../components/QR.svelte'
   import type { AdminApi } from './adminApi'
   import { RunLive } from './runLive.svelte'
@@ -67,6 +68,18 @@
     await live.act(() => api.start(runId), 'Игра запущена')
   }
 
+  async function deleteRun() {
+    const n = d?.teams.length ?? 0
+    if (!confirm(`Удалить игру «${live.run?.title ?? ''}»?${n ? ` Команд: ${n}.` : ''}\n\nОна пропадёт из списка, ссылка и вход для игроков перестанут работать. ` +
+      `30 дней игру можно восстановить из корзины на странице игр, потом она сотрётся вместе с фото.`)) return
+    try {
+      await api.deleteRun(runId)
+      router.go('/admin')
+    } catch (e) {
+      live.note('bad', e instanceof ApiError ? e.message : 'Нет связи с сервером')
+    }
+  }
+
   async function finishRun() {
     if (!confirm('Завершить игру для всех команд? Это нельзя отменить.')) return
     await live.act(() => api.finish(runId), 'Игра завершена')
@@ -123,6 +136,9 @@
           <button onclick={startRun} disabled={d.teams.length === 0}>Старт игры</button>
         {:else if d.run_status === 'running'}
           <button class="danger" onclick={finishRun}>Завершить игру</button>
+        {/if}
+        {#if d.run_status !== 'running'}
+          <button class="ghost small delrun" onclick={deleteRun}>Удалить игру</button>
         {/if}
       </div>
       {#if showQR}
@@ -195,6 +211,9 @@
 </div>
 
 <style>
+  .delrun {
+    color: var(--bad);
+  }
   .head h1 {
     margin-bottom: 0.35rem;
   }

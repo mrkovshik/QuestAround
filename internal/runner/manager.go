@@ -2,9 +2,11 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"questaround/internal/core"
 	"questaround/internal/scenario"
@@ -48,6 +50,9 @@ func (m *Manager) getLocked(ctx context.Context, runID string) (*Runner, error) 
 	run, err := m.store.GetRun(ctx, runID)
 	if err != nil {
 		return nil, err
+	}
+	if run.DeletedAt != nil {
+		return nil, store.ErrNotFound // в корзине: ни игрокам, ни дашборду
 	}
 	sv, err := m.store.GetScenarioVersion(ctx, run.ScenarioVersionID)
 	if err != nil {
@@ -146,4 +151,62 @@ func (m *Manager) ChangeScenario(ctx context.Context, runID, versionID string) e
 	}
 	_, err = r.Do(ctx, core.NoteScenarioChanged{VersionID: sv.ID, Slug: sv.Slug, Version: sv.Version})
 	return err
+}
+
+// ErrRunInProgress — идущую игру нельзя удалить: сначала завершить.
+var ErrRunInProgress = errors.New("игра идёт — сначала завершите её")
+
+// ErrNotInTrash — стереть навсегда можно только игру из корзины.
+var ErrNotInTrash = errors.New("игра не в корзине")
+
+// Delete кладёт игру в корзину: она пропадает из списка, ссылка и токены игроков
+// перестают работать. Журнал не трогаем — игру можно восстановить.
+func (m *Manager) Delete(ctx context.Context, runID string, now time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	r, err := m.getLocked(ctx, runID)
+	if err != nil {
+		return err
+	}
+	var status core.RunStatus
+	if err := r.Read(ctx, func(g *core.Game) { status = g.Status }); err != nil {
+		return err
+	}
+	if status == core.RunStatusRunning {
+		return ErrRunInProgress
+	}
+	if err := m.store.SetRunDeleted(ctx, runID, &now); err != nil {
+		return err
+	}
+	m.stop(runID)
+	return nil
+}
+
+// Restore достаёт игру из корзины.
+func (m *Manager) Restore(ctx context.Context, runID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	run, err := m.store.GetRun(ctx, runID)
+	if err != nil {
+		return err
+	}
+	if run.DeletedAt == nil {
+		return nil
+	}
+	return m.store.SetRunDeleted(ctx, runID, nil)
+}
+
+// Purge стирает игру из корзины навсегда (журнал и запись игры).
+func (m *Manager) Purge(ctx context.Context, runID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	run, err := m.store.GetRun(ctx, runID)
+	if err != nil {
+		return err
+	}
+	if run.DeletedAt == nil {
+		return ErrNotInTrash
+	}
+	m.stop(runID)
+	return m.store.PurgeRun(ctx, runID)
 }

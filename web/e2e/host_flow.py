@@ -298,6 +298,27 @@ with sync_playwright() as p:
     host.click("a.brand")
     expect(host.locator("td", has_text="Горячий Ключ: пилот")).to_be_visible()
     host.screenshot(path=f"{SHOTS}/h10-runs.png")
+
+    # --- удаление в корзину, восстановление, удаление со страницы игры ---
+    row = host.locator("tr", has_text="Горячий Ключ: пилот")
+    row.locator("button:has-text('Удалить')").click()  # confirm принимается автоматически
+    expect(host.locator("table.grid >> tr", has_text="Горячий Ключ: пилот")).to_have_count(0)
+    host.click("text=Корзина (1)")
+    trow = host.locator("table.trash tr", has_text="Горячий Ключ: пилот")
+    expect(trow).to_contain_text(code)
+    host.screenshot(path=f"{SHOTS}/h11-trash.png")
+    # ссылка игрока больше не работает
+    pl.goto(BASE + "/g/" + code)
+    expect(pl.locator("text=Игра с таким кодом не найдена").first).to_be_visible(timeout=5000)
+    trow.locator("button:has-text('Восстановить')").click()
+    expect(host.locator("tr.click", has_text="Горячий Ключ: пилот")).to_be_visible()
+    expect(host.locator("text=Корзина")).to_have_count(0)
+    host.click("tr.click:has-text('Горячий Ключ: пилот')")
+    host.click("button:has-text('Удалить игру')")
+    expect(host.locator("h2", has_text="Игры")).to_be_visible()
+    host.click("text=Корзина (1)")
+    host.locator("table.trash button:has-text('Стереть сейчас')").click()
+    expect(host.locator("text=Корзина")).to_have_count(0)
     browser.close()
 
 if errors:
