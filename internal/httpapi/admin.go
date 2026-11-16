@@ -35,7 +35,7 @@ func (s *Server) uploadScenario(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	sc, err := scenario.ParseWith(src, scenario.Options{MediaExists: func(n string) bool {
+	sc, err := scenario.ParseWith(src, scenario.Options{Strict: true, MediaExists: func(n string) bool {
 		_, ok := s.cfg.Media.AssetKey(n)
 		return ok
 	}})

@@ -534,7 +534,7 @@ func (g *Game) completeBonus(t *tx, team *Team, levelID, bonusID string) {
 	sl, _ := g.level(levelID)
 	for _, b := range sl.Bonuses {
 		if b.ID == bonusID {
-			t.emit(team.ID, "", "", BonusCompleted{LevelID: levelID, BonusID: bonusID, Points: b.Points})
+			t.emit(team.ID, "", "", BonusCompleted{LevelID: levelID, BonusID: bonusID, Points: b.Points, Time: b.Time.D()})
 			return
 		}
 	}

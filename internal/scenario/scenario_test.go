@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -477,5 +478,47 @@ func TestMedia(t *testing.T) {
 	_, err = Parse([]byte(head + "levels: [{id: a, task: x, media: [park.bmp], answers: [{type: photo}]}]\n"))
 	if err == nil || !strings.Contains(err.Error(), "ожидалось имя картинки") {
 		t.Errorf("park.bmp: %v", err)
+	}
+}
+
+func TestTimeModeNoPoints(t *testing.T) {
+	src := head + `scoring: {mode: time}
+levels:
+  - id: a
+    task: x
+    points: 10
+    answers: [{type: code, values: ["1"]}]
+    hints:
+      - {on_request: true, penalty: {points: 5}, text: h}
+      - {on_request: true, penalty: {time: 5m}, text: h2}
+    bonuses:
+      - {id: b1, title: b, answer: {type: photo}, points: 5}
+      - {id: b2, title: b, answer: {type: photo}}
+      - {id: b3, title: b, answer: {type: photo}, time: 5m}
+`
+	// сохранённые версии грузятся как раньше
+	if _, err := Parse([]byte(src)); err != nil {
+		t.Fatalf("нестрогий разбор: %v", err)
+	}
+	_, err := ParseWith([]byte(src), Options{Strict: true})
+	var errs Errors
+	if !errors.As(err, &errs) {
+		t.Fatalf("ожидали ошибки, получили %v", err)
+	}
+	var got []string
+	for _, e := range errs {
+		got = append(got, e.Path)
+	}
+	want := []string{"levels[0].points", "levels[0].hints[0].penalty.points", "levels[0].bonuses[0].points", "levels[0].bonuses[1]"}
+	if !slices.Equal(got, want) {
+		t.Errorf("ошибки в %v, ожидали %v\n%v", got, want, err)
+	}
+	sc, err := ParseWith([]byte(strings.NewReplacer("    points: 10\n", "", "penalty: {points: 5}", "penalty: {time: 1m}",
+		", points: 5}", ", time: 2m}", "{id: b2, title: b, answer: {type: photo}}", "{id: b2, title: b, answer: {type: photo}, time: 30s}").Replace(src)), Options{Strict: true})
+	if err != nil {
+		t.Fatalf("исправленный сценарий: %v", err)
+	}
+	if d := sc.Levels[0].Bonuses[2].Time.D(); d != 5*time.Minute {
+		t.Errorf("time бонуса: %v", d)
 	}
 }

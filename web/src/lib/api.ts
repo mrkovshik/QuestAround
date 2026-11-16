@@ -27,6 +27,7 @@ export interface Bonus {
   done: boolean
   pending: boolean
   media?: string[]
+  time_sec?: number
 }
 
 export interface Level {
@@ -136,7 +137,9 @@ export interface PlayerState {
   time_limit_at?: string
   points: number
   penalty_sec: number
+  bonus_sec: number
   elapsed_sec: number
+  clean_sec: number
   levels_done: number
   levels_total: number
   levels: Level[]
@@ -144,6 +147,7 @@ export interface PlayerState {
   hint_requests: 'captain' | 'anyone'
   score: ScoreItem[]
   scoring_rule: string
+  scoring_mode: ScoringMode
   results?: Results
   chat: ChatMsg[]
   sos: Sos[]
@@ -185,8 +189,12 @@ export interface Standing {
   points: number
   levels: number
   elapsed_sec: number
+  penalty_sec?: number
+  bonus_sec?: number
   finished: boolean
 }
+
+export type ScoringMode = 'time' | 'points' | 'mixed'
 
 export interface AnswerBody {
   client_event_id: string
@@ -247,7 +255,7 @@ export const api = {
   hint: (token: string, levelId: string, idx: number) =>
     request<void>('POST', `/api/v1/levels/${encodeURIComponent(levelId)}/hints/${idx}`, { token }),
   leaderboard: (token: string) =>
-    request<{ frozen: boolean; final: boolean; rule: string; standings: Standing[] }>('GET', '/api/v1/leaderboard', { token }),
+    request<{ frozen: boolean; final: boolean; rule: string; mode: ScoringMode; standings: Standing[] }>('GET', '/api/v1/leaderboard', { token }),
 
   chat: (token: string, text: string, media_key?: string) =>
     request<void>('POST', '/api/v1/chat', { token, body: { text, media_key } }),

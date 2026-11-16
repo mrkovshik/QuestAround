@@ -177,7 +177,8 @@ type Team struct {
 	Bonuses       map[string]bool        // засчитанные бонусы
 	PendingBonus  map[string]int64       // бонус → Seq заявки на модерации
 	Points        int
-	PenaltyTime   time.Duration
+	PenaltyTime   time.Duration // штрафы за подсказки и поправки ведущего (+/−)
+	BonusTime     time.Duration // вычтено за бонусы
 	LevelsDone    int
 	LastActivity  time.Time
 	Ledger        []ScoreEntry // откуда взялись баллы и штрафное время
@@ -445,7 +446,8 @@ func (g *Game) Apply(e Event) {
 	case BonusCompleted:
 		t.Bonuses[p.BonusID] = true
 		t.Points += p.Points
-		t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "bonus", LevelID: p.LevelID, BonusID: p.BonusID, Points: p.Points})
+		t.BonusTime += p.Time
+		t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "bonus", LevelID: p.LevelID, BonusID: p.BonusID, Points: p.Points, Time: -p.Time})
 
 	case LevelCompleted:
 		t.Levels[p.LevelID].CompletedAt = e.At

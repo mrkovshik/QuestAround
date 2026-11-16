@@ -20,13 +20,13 @@
   function elapsed(t: DashTeam): number {
     // На сервере время посчитано на момент загрузки; для играющих — докручиваем.
     if (t.status !== 'playing' || !t.started_at) return t.elapsed_sec
-    return since(t.started_at, live.now) + t.penalty_sec
+    return since(t.started_at, live.now) + t.penalty_sec - t.bonus_sec
   }
 
   let sort = $state<'slot' | 'progress' | 'stuck'>('slot')
   const teams = $derived.by(() => {
     const list = [...d.teams]
-    if (sort === 'progress') list.sort((a, b) => b.levels_done - a.levels_done || b.points - a.points)
+    if (sort === 'progress') list.sort((a, b) => b.levels_done - a.levels_done || (timeMode ? elapsed(a) - elapsed(b) : b.points - a.points))
     if (sort === 'stuck') list.sort((a, b) => onLevel(b) - onLevel(a))
     return list
   })
@@ -36,6 +36,7 @@
     finished: d.teams.filter((t) => t.status === 'finished').length,
     waiting: d.teams.filter((t) => t.status === 'registered' || t.status === 'scheduled').length,
   })
+  const timeMode = $derived(live.dash?.scoring_mode === 'time')
 </script>
 
 <section class="card">
@@ -68,7 +69,7 @@
             <th class="num">На уровне</th>
             <th class="num">Прогресс</th>
             <th class="num">Подсказки</th>
-            <th class="num">Баллы</th>
+            {#if !timeMode}<th class="num">Баллы</th>{/if}
             <th class="num">Время</th>
             <th>Активность</th>
           </tr>
@@ -103,10 +104,11 @@
                 {#if cur && cur.required > 1}<div class="muted small">секторы {cur.solved}/{cur.required}</div>{/if}
               </td>
               <td class="num">{t.levels.reduce((n, l) => n + l.hints_opened, 0)}</td>
-              <td class="num"><strong>{t.points}</strong></td>
+              {#if !timeMode}<td class="num"><strong>{t.points}</strong></td>{/if}
               <td class="num">
                 {t.started_at ? clock(elapsed(t)) : '—'}
-                {#if t.penalty_sec}<div class="small warm">{t.penalty_sec > 0 ? '+' : ''}{clock(Math.abs(t.penalty_sec))} штраф</div>{/if}
+                {#if t.penalty_sec}<div class="small warm">{t.penalty_sec > 0 ? '+' : '−'}{clock(Math.abs(t.penalty_sec))} штраф</div>{/if}
+                {#if t.bonus_sec}<div class="small okc">−{clock(t.bonus_sec)} бонусы</div>{/if}
               </td>
               <td class:warm={quiet}>{t.status === 'playing' ? ago(t.last_activity, live.now) : '—'}</td>
             </tr>
@@ -122,6 +124,9 @@
 </section>
 
 <style>
+  .okc {
+    color: var(--ok);
+  }
   .summary {
     margin-bottom: 0.75rem;
   }

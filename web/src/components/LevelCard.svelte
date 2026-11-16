@@ -27,6 +27,14 @@
     if (!confirm(`Взять подсказку? Штраф: ${fine}.`)) return
     await live.requestHint(level.id, idx)
   }
+
+  // Что даёт бонус: в зачёте по времени — минуты, иначе баллы (и минуты, если заданы).
+  function bonusLabel(b: { points: number; time_sec?: number }): string {
+    const parts: string[] = []
+    if (b.points && live.state?.scoring_mode !== 'time') parts.push(`+${b.points}`)
+    if (b.time_sec) parts.push(`−${minutes(b.time_sec)}`)
+    return parts.join(', ')
+  }
 </script>
 
 <article class="card level" class:solved={!level.open}>
@@ -34,7 +42,7 @@
     <h2 class="grow">{level.title || 'Задание'}</h2>
     {#if !level.open}
       <span class="badge ok">Пройдено</span>
-    {:else if level.points}
+    {:else if level.points && live.state?.scoring_mode !== 'time'}
       <span class="badge">{points(level.points)}</span>
     {/if}
   </header>
@@ -119,12 +127,10 @@
         <div class="bonus">
           <div class="row">
             <span class="grow">{b.title || 'Бонус'}</span>
-            {#if b.done}
-              <span class="badge ok">+{b.points}</span>
-            {:else if b.pending}
+            {#if b.pending}
               <span class="badge warn">на проверке</span>
-            {:else}
-              <span class="badge">+{b.points}</span>
+            {:else if bonusLabel(b)}
+              <span class="badge" class:ok={b.done}>{bonusLabel(b)}</span>
             {/if}
           </div>
           {#each b.media ?? [] as m (m)}

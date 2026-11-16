@@ -164,8 +164,18 @@ export class Live {
   elapsed(): number {
     const s = this.state
     if (!s) return 0
-    const running = s.team.status === 'playing'
-    return s.elapsed_sec + (running ? Math.floor((this.now - this.fetchedAt) / 1000) : 0)
+    return s.elapsed_sec + this.tickSec()
+  }
+
+  /** Чистое время команды (без штрафов и бонусов). */
+  cleanElapsed(): number {
+    const s = this.state
+    if (!s) return 0
+    return s.clean_sec + this.tickSec()
+  }
+
+  private tickSec(): number {
+    return this.state?.team.status === 'playing' ? Math.floor((this.now - this.fetchedAt) / 1000) : 0
   }
 
   toast(kind: ToastKind, text: string, ms = 3500) {

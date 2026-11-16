@@ -512,3 +512,34 @@ func TestNoTeams(t *testing.T) {
 	h := newHarness(t, linearYAML)
 	h.fail(StartRun{}, ErrNoTeams)
 }
+
+func TestBonusTime(t *testing.T) {
+	h := newHarness(t, `
+version: 1
+id: x
+title: x
+scoring: {mode: time}
+levels:
+  - id: a
+    task: t
+    answers: [{type: code, values: ["1"]}]
+    bonuses: [{id: sel, title: Селфи, answer: {type: photo}, time: 20m}]
+    hints: [{on_request: true, penalty: {time: 5m}, text: h}]
+`, "fast", "slow")
+	h.do(StartRun{})
+	h.advance(10 * time.Minute)
+	h.code("fast", "1")
+	out := h.do(SubmitAnswer{TeamID: "slow", Kind: KindPhoto, LevelID: "a", BonusID: "sel", MediaKey: "m/1.jpg"})
+	h.do(Moderate{Ref: out.Answer.Seq, Approved: true})
+	h.do(RequestHint{TeamID: "slow", IsCaptain: true, LevelID: "a", HintIdx: 0})
+	h.advance(15 * time.Minute)
+	h.code("slow", "1") // 25 мин + 5 штраф − 20 бонус = 10 мин; у fast тоже 10 → равенство
+
+	st := h.g.Standings(h.now)
+	h.eq("время slow", h.g.Elapsed(h.team("slow"), h.now), 10*time.Minute)
+	h.eq("разбивка slow", [2]time.Duration{st[0].Penalty + st[1].Penalty, st[0].Bonus + st[1].Bonus}, [2]time.Duration{5 * time.Minute, 20 * time.Minute})
+	h.eq("ничья", st[0].Rank == st[1].Rank, true)
+	last := h.team("slow").Ledger
+	h.eq("строка бонуса", [2]any{last[0].Kind, last[0].Time}, [2]any{"bonus", -20 * time.Minute})
+	h.checkReplay()
+}

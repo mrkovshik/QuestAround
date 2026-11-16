@@ -52,8 +52,8 @@ levels:
 type testServer struct {
 	api      *Server
 	mediaDir string
-	t   *testing.T
-	srv *httptest.Server
+	t        *testing.T
+	srv      *httptest.Server
 }
 
 func newTestServer(t *testing.T) *testServer {

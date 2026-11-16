@@ -212,10 +212,11 @@ type Penalty struct {
 }
 
 type Bonus struct {
-	ID     string `yaml:"id"`
-	Title  string `yaml:"title"`
+	ID     string   `yaml:"id"`
+	Title  string   `yaml:"title"`
 	Answer Answer   `yaml:"answer"`
 	Points int      `yaml:"points"`
+	Time   Duration `yaml:"time"` // вычесть из времени команды
 	Media  []string `yaml:"media"`
 }
 

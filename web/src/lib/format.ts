@@ -1,5 +1,6 @@
 export function clock(totalSec: number): string {
-  const s = Math.max(0, Math.floor(totalSec))
+  if (totalSec < 0) return '−' + clock(-totalSec) // бонусы перевесили прошедшее время
+  const s = Math.floor(totalSec)
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60

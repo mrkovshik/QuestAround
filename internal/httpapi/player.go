@@ -308,12 +308,14 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request, p *player) 
 		frozen  bool
 		final   bool
 		rule    string
+		mode    string
 	)
 	err := p.Runner.Read(r.Context(), func(g *core.Game) {
 		st, visible = g.LeaderboardFor(p.TeamID, s.now())
 		frozen = g.Leaderboard.Frozen && g.Status != core.RunStatusFinished
 		final = g.Results != nil
 		rule = g.ScoringRule()
+		mode = string(g.Scenario.Scoring.Mode)
 	})
 	if err != nil {
 		s.writeError(w, r, err)
@@ -323,7 +325,7 @@ func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request, p *player) 
 		s.writeError(w, r, newErr(http.StatusForbidden, "leaderboard_hidden", "таблица результатов сейчас скрыта"))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"frozen": frozen, "final": final, "rule": rule, "standings": standingsDTO(st)})
+	writeJSON(w, http.StatusOK, map[string]any{"frozen": frozen, "final": final, "rule": rule, "mode": mode, "standings": standingsDTO(st)})
 }
 
 // --- команда ---

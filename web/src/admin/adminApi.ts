@@ -69,6 +69,7 @@ export interface DashTeam {
   route?: string[]
   points: number
   penalty_sec: number
+  bonus_sec: number
   elapsed_sec: number
   levels_done: number
   last_activity?: string
@@ -86,6 +87,7 @@ export interface Dashboard {
   leaderboard: { visibility: string; override: boolean | null; frozen: boolean }
   pending_moderation: number
   scoring_rule: string
+  scoring_mode: 'time' | 'points' | 'mixed'
   host_contact: string
   sos: Sos[]
   results?: { at: string; message?: string; standings: Standing[] }

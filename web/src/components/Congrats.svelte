@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Results } from '../lib/api'
+  import type { Results, ScoringMode } from '../lib/api'
   import { clock, points } from '../lib/format'
 
-  let { results, team }: { results: Results; team: string } = $props()
+  let { results, team, mode = 'points' }: { results: Results; team: string; mode?: ScoringMode } = $props()
 
   const rank = $derived(results.rank ?? 0)
   const medal = $derived(['', '🥇', '🥈', '🥉'][rank] ?? '')
@@ -17,7 +17,7 @@
   <p class="place">
     «{team}» — <strong>{rank} место</strong> из {results.teams}
   </p>
-  <p class="muted">{points(results.points)} · время {clock(results.elapsed_sec)}</p>
+  <p class="muted">{mode === 'time' ? '' : points(results.points) + ' · '}время {clock(results.elapsed_sec)}</p>
   {#if results.message}
     <p class="msg task">{results.message}</p>
   {/if}

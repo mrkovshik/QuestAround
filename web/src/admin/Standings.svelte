@@ -41,6 +41,7 @@
   function set(v: boolean | null) {
     live.act(() => live.api.setLeaderboard(runId, v), v === null ? 'Как в сценарии' : v ? 'Таблица открыта игрокам' : 'Таблица скрыта')
   }
+  const timeMode = $derived(live.dash?.scoring_mode === 'time')
 </script>
 
 {#if finished}
@@ -49,7 +50,7 @@
     {#if results}
       <p>
         Итоги утверждены в {new Date(results.at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}. Команды видят свои места и
-        поздравление. Если внесли поправки (баллы/время в карточке команды) — утвердите заново.
+        поздравление. Если внесли поправки ({timeMode ? 'время' : 'баллы/время'} в карточке команды) — утвердите заново.
       </p>
     {:else}
       <p>
@@ -84,7 +85,7 @@
   </p>
   <table class="grid">
     <thead>
-      <tr><th class="num">#</th><th>Команда</th><th class="num">Уровней</th><th class="num">Баллы</th><th class="num">Время</th><th></th></tr>
+      <tr><th class="num">#</th><th>Команда</th><th class="num">Уровней</th>{#if !timeMode}<th class="num">Баллы</th>{/if}<th class="num">Время</th><th></th></tr>
     </thead>
     <tbody>
       {#each rows as s (s.team_id)}
@@ -92,8 +93,16 @@
           <td class="num"><strong>{results && !showLive && MEDAL[s.rank] ? MEDAL[s.rank] : s.rank}</strong></td>
           <td>{s.name}</td>
           <td class="num">{s.levels}</td>
-          <td class="num"><strong>{s.points}</strong></td>
-          <td class="num">{clock(s.elapsed_sec)}</td>
+          {#if !timeMode}<td class="num"><strong>{s.points}</strong></td>{/if}
+          <td class="num">
+            {#if timeMode}<strong>{clock(s.elapsed_sec)}</strong>{:else}{clock(s.elapsed_sec)}{/if}
+            {#if s.penalty_sec || s.bonus_sec}
+              <div class="small muted">
+                {s.penalty_sec ? `${s.penalty_sec > 0 ? '+' : '−'}${clock(Math.abs(s.penalty_sec))}` : ''}
+                {s.bonus_sec ? `−${clock(s.bonus_sec)} бонусы` : ''}
+              </div>
+            {/if}
+          </td>
           <td>{#if s.finished}<span class="badge ok">финиш</span>{/if}</td>
         </tr>
       {/each}

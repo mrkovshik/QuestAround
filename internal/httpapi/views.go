@@ -21,6 +21,8 @@ type standingDTO struct {
 	Points     int    `json:"points"`
 	Levels     int    `json:"levels"`
 	ElapsedSec int64  `json:"elapsed_sec"`
+	PenaltySec int64  `json:"penalty_sec,omitempty"`
+	BonusSec   int64  `json:"bonus_sec,omitempty"`
 	Finished   bool   `json:"finished"`
 }
 
@@ -30,6 +32,7 @@ func standingsDTO(st []core.Standing) []standingDTO {
 		out[i] = standingDTO{
 			Rank: s.Rank, TeamID: s.TeamID, Name: s.Name, Status: string(s.Status),
 			Points: s.Points, Levels: s.Levels, ElapsedSec: int64(s.Elapsed / time.Second), Finished: s.Finished,
+			PenaltySec: int64(s.Penalty / time.Second), BonusSec: int64(s.Bonus / time.Second),
 		}
 	}
 	return out
@@ -69,13 +72,14 @@ type hintDTO struct {
 }
 
 type bonusDTO struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Type    string `json:"type"`
-	Points  int    `json:"points"`
+	ID      string   `json:"id"`
+	Title   string   `json:"title"`
+	Type    string   `json:"type"`
+	Points  int      `json:"points"`
 	Done    bool     `json:"done"`
 	Pending bool     `json:"pending"`
 	Media   []string `json:"media,omitempty"`
+	TimeSec int64    `json:"time_sec,omitempty"` // сколько вычитается из времени
 }
 
 type levelDTO struct {
@@ -141,6 +145,7 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 		d.Bonuses = append(d.Bonuses, bonusDTO{
 			ID: b.ID, Title: b.Title, Type: clientAnswerType(b.Answer.Type), Points: b.Points,
 			Done: team.Bonuses[b.ID], Pending: team.PendingBonus[b.ID] != 0, Media: b.Media,
+			TimeSec: int64(b.Time.D() / time.Second),
 		})
 	}
 	return d
@@ -276,7 +281,9 @@ type playerStateDTO struct {
 	TimeLimitAt *time.Time `json:"time_limit_at,omitempty"`
 	Points      int        `json:"points"`
 	PenaltySec  int64      `json:"penalty_sec"`
-	ElapsedSec  int64      `json:"elapsed_sec"`
+	BonusSec    int64      `json:"bonus_sec"`
+	ElapsedSec  int64      `json:"elapsed_sec"` // итог: чистое + штрафы − бонусы (может быть < 0)
+	CleanSec    int64      `json:"clean_sec"`   // чистое время
 	LevelsDone  int        `json:"levels_done"`
 	LevelsTotal int        `json:"levels_total"`
 
@@ -285,6 +292,7 @@ type playerStateDTO struct {
 	HintRequests string         `json:"hint_requests"`
 	Score        []scoreItemDTO `json:"score"`
 	ScoringRule  string         `json:"scoring_rule"`
+	ScoringMode  string         `json:"scoring_mode"`
 	Results      *resultsDTO    `json:"results,omitempty"`
 	Chat         []chatDTO      `json:"chat"`
 	SOS          []sosDTO       `json:"sos"`
@@ -302,14 +310,16 @@ func playerStateView(g *core.Game, title, playerID string, team *core.Team, now 
 		Seq: g.Seq(), RunStatus: string(g.Status), Title: title,
 		Team: teamView(g, team), PlayerID: playerID, IsCaptain: team.CaptainID == playerID,
 		StartedAt: timePtr(team.StartedAt), FinishedAt: timePtr(team.FinishedAt),
-		Points: team.Points, PenaltySec: int64(team.PenaltyTime / time.Second),
+		Points: team.Points, PenaltySec: int64(team.PenaltyTime / time.Second), BonusSec: int64(team.BonusTime / time.Second),
 		ElapsedSec: int64(g.Elapsed(team, now) / time.Second),
+		CleanSec:   int64(g.CleanElapsed(team, now) / time.Second),
 		LevelsDone: team.LevelsDone, LevelsTotal: len(g.Scenario.Levels),
 		Levels:       openedLevels(g, team),
 		Messages:     messagesDTO(g.Messages),
 		HintRequests: string(g.Scenario.Participants.HintRequests),
 		Score:        ledgerView(g, team),
 		ScoringRule:  g.ScoringRule(),
+		ScoringMode:  string(g.Scenario.Scoring.Mode),
 		Results:      resultsFor(g, team.ID),
 		Chat:         chatView(g, team),
 		SOS:          sosForTeam(g, team.ID),
@@ -352,6 +362,7 @@ type dashTeamDTO struct {
 	Route        []string          `json:"route,omitempty"`
 	Points       int               `json:"points"`
 	PenaltySec   int64             `json:"penalty_sec"`
+	BonusSec     int64             `json:"bonus_sec"`
 	ElapsedSec   int64             `json:"elapsed_sec"`
 	LevelsDone   int               `json:"levels_done"`
 	LastActivity *time.Time        `json:"last_activity,omitempty"`
@@ -376,6 +387,7 @@ type dashboardDTO struct {
 	} `json:"leaderboard"`
 	PendingModeration int      `json:"pending_moderation"`
 	ScoringRule       string   `json:"scoring_rule"`
+	ScoringMode       string   `json:"scoring_mode"`
 	HostContact       string   `json:"host_contact"`
 	SOS               []sosDTO `json:"sos"` // все сигналы, новые сверху
 	Results           *struct {
@@ -396,6 +408,7 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 		Standings:         standingsDTO(g.Standings(now)),
 		Messages:          messagesDTO(g.Messages),
 		ScoringRule:       g.ScoringRule(),
+		ScoringMode:       string(g.Scenario.Scoring.Mode),
 		HostContact:       g.HostContact,
 		SOS:               []sosDTO{},
 		Teams:             []dashTeamDTO{},
@@ -426,7 +439,7 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 			teamDTO: teamView(g, t), Contact: t.Contact, Slot: t.Slot,
 			ScheduledAt: timePtr(t.ScheduledAt), StartedAt: timePtr(t.StartedAt), FinishedAt: timePtr(t.FinishedAt),
 			FinishReason: t.FinishReason, Route: t.Route, Points: t.Points,
-			PenaltySec: int64(t.PenaltyTime / time.Second), ElapsedSec: int64(g.Elapsed(t, now) / time.Second),
+			PenaltySec: int64(t.PenaltyTime / time.Second), BonusSec: int64(t.BonusTime / time.Second), ElapsedSec: int64(g.Elapsed(t, now) / time.Second),
 			LevelsDone: t.LevelsDone, LastActivity: timePtr(t.LastActivity),
 			Current: []currentLevelDTO{}, Levels: []currentLevelDTO{}, Score: ledgerView(g, t), Chat: chatView(g, t),
 		}

@@ -9,6 +9,7 @@
   let frozen = $state(false)
   let final = $state(false)
   let rule = $state('')
+  let mode = $state('points')
   let error = $state<string | null>(null)
 
   // Перезагружаем таблицу при каждом изменении состояния игры.
@@ -21,6 +22,7 @@
         frozen = r.frozen
         final = r.final
         rule = r.rule
+        mode = r.mode
         error = null
       })
       .catch((e) => (error = e instanceof ApiError ? e.message : 'Нет связи'))
@@ -43,7 +45,7 @@
   {:else}
     <table>
       <thead>
-        <tr><th>#</th><th>Команда</th><th>Ур.</th><th>Баллы</th><th>Время</th></tr>
+        <tr><th>#</th><th>Команда</th><th>Ур.</th>{#if mode !== 'time'}<th>Баллы</th>{/if}<th>Время</th></tr>
       </thead>
       <tbody>
         {#each rows as r (r.team_id)}
@@ -51,8 +53,15 @@
             <td>{final && MEDAL[r.rank] ? MEDAL[r.rank] : r.rank}</td>
             <td class="name">{r.name}{#if r.finished}<span class="muted"> ✓</span>{/if}</td>
             <td>{r.levels}</td>
-            <td>{r.points}</td>
-            <td class="num">{clock(r.elapsed_sec)}</td>
+            {#if mode !== 'time'}<td>{r.points}</td>{/if}
+            <td class="num">
+              {clock(r.elapsed_sec)}
+              {#if mode === 'time' && (r.penalty_sec || r.bonus_sec)}
+                <div class="small muted">
+                  {r.penalty_sec ? `+${Math.round(r.penalty_sec / 60)}′` : ''}{r.penalty_sec && r.bonus_sec ? ' ' : ''}{r.bonus_sec ? `−${Math.round(r.bonus_sec / 60)}′` : ''}
+                </div>
+              {/if}
+            </td>
           </tr>
         {/each}
       </tbody>

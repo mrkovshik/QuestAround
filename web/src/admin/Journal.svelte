@@ -94,7 +94,7 @@
       case 'level_completed':
         return p.level_id + (p.points ? ` (+${p.points})` : '')
       case 'bonus_completed':
-        return `${p.bonus_id} (+${p.points})`
+        return `${p.bonus_id} (${[p.points ? `+${p.points}` : '', p.time ? `−${p.time / 6e10} мин` : ''].filter(Boolean).join(', ')})`
       case 'team_finished':
       case 'run_finished':
         return p.reason

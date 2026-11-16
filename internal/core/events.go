@@ -148,9 +148,10 @@ type HintOpened struct {
 }
 
 type BonusCompleted struct {
-	LevelID string `json:"level_id"`
-	BonusID string `json:"bonus_id"`
-	Points  int    `json:"points"`
+	LevelID string        `json:"level_id"`
+	BonusID string        `json:"bonus_id"`
+	Points  int           `json:"points"`
+	Time    time.Duration `json:"time,omitempty"` // сколько вычесть из времени команды
 }
 
 type LevelCompleted struct {

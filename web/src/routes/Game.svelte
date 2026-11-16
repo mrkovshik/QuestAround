@@ -68,9 +68,9 @@
       <div class="muted small">{s.title}</div>
     </div>
     {#if status === 'playing' || status === 'finished'}
-      <button class="stats" onclick={() => (tab = 'team')} title="Расшифровка баллов">
-        <div class="big">{remaining !== null ? clock(remaining) : clock(live.elapsed())}</div>
-        <div class="muted small">{points(s.points)} · {s.levels_done}/{s.levels_total}</div>
+      <button class="stats" onclick={() => (tab = 'team')} title="Расшифровка баллов и времени">
+        <div class="big">{remaining !== null ? clock(remaining) : clock(live.cleanElapsed())}</div>
+        <div class="muted small">{s.scoring_mode === 'time' ? '' : points(s.points) + ' · '}{s.levels_done}/{s.levels_total}</div>
       </button>
     {/if}
   </header>
@@ -119,7 +119,7 @@
         </div>
       {/if}
       {#if !waiting}
-        <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} rule={s.scoring_rule} />
+        <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} bonusSec={s.bonus_sec} elapsedSec={live.elapsed()} cleanSec={live.cleanElapsed()} mode={s.scoring_mode} rule={s.scoring_rule} />
         <TeamPhotos photos={s.photos} />
       {/if}
       <TeamPanel {live} {logout} />
@@ -127,12 +127,12 @@
       <Leaderboard {live} />
     {:else if status === 'finished'}
       {#if s.results}
-        <Congrats results={s.results} team={s.team.name} />
+        <Congrats mode={s.scoring_mode} results={s.results} team={s.team.name} />
         <button class="secondary block" onclick={() => (tab = 'table')}>Итоговая таблица</button>
       {:else}
         <div class="card center">
           <h2>Финиш!</h2>
-          <p>{points(s.points)} · уровней: {s.levels_done} из {s.levels_total} · время {clock(live.elapsed())}</p>
+          <p>{s.scoring_mode === 'time' ? '' : points(s.points) + ' · '}уровней: {s.levels_done} из {s.levels_total} · время {clock(live.elapsed())}</p>
           {#if s.run_status === 'finished'}
             <p class="muted small">Ведущий подводит итоги — результат появится здесь, держите страницу открытой.</p>
           {:else}
@@ -143,7 +143,7 @@
           {/if}
         </div>
       {/if}
-      <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} rule={s.scoring_rule} />
+      <Score items={s.score} total={s.points} penaltySec={s.penalty_sec} bonusSec={s.bonus_sec} elapsedSec={live.elapsed()} cleanSec={live.cleanElapsed()} mode={s.scoring_mode} rule={s.scoring_rule} />
       <TeamPhotos photos={s.photos} />
       <Play {live} />
     {:else if status === 'withdrawn'}

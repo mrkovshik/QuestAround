@@ -107,6 +107,8 @@
     if (e.key === 'Escape') onClose()
   }
   const teamPhotos = $derived([...live.photos.filter((p) => p.team_id === team.id)].reverse())
+  const timeMode = $derived(live.dash?.scoring_mode === 'time')
+  const ledger = $derived(timeMode ? team.score.filter((it) => it.time_sec) : team.score)
 </script>
 
 <svelte:window onkeydown={onKey} />
@@ -123,10 +125,11 @@
   </header>
 
   <section class="facts">
-    <div><span class="muted">Баллы</span> <strong>{team.points}</strong></div>
+    {#if !timeMode}<div><span class="muted">Баллы</span> <strong>{team.points}</strong></div>{/if}
     <div><span class="muted">Уровней</span> <strong>{team.levels_done}</strong></div>
     <div><span class="muted">Время</span> <strong>{team.started_at ? clock(team.elapsed_sec) : '—'}</strong></div>
     <div><span class="muted">Штраф</span> <strong>{team.penalty_sec ? clock(Math.abs(team.penalty_sec)) : '—'}</strong>{team.penalty_sec < 0 ? ' (−)' : ''}</div>
+    {#if team.bonus_sec}<div><span class="muted">Бонусы</span> <strong>−{clock(team.bonus_sec)}</strong></div>{/if}
     <div><span class="muted">Старт</span> <strong>{hhmm(team.started_at ?? team.scheduled_at)}</strong></div>
     <div><span class="muted">Финиш</span> <strong>{hhmm(team.finished_at)}</strong></div>
   </section>
@@ -176,16 +179,16 @@
   {/if}
 
   <section>
-    <h3>Баллы ({team.points})</h3>
-    {#if team.score.length === 0}
+    <h3>{timeMode ? 'Штрафы и бонусы' : `Баллы (${team.points})`}</h3>
+    {#if ledger.length === 0}
       <p class="muted small">Пока ничего.</p>
     {:else}
       <ul class="plain ledger">
-        {#each team.score as it, i (i)}
+        {#each ledger as it, i (i)}
           <li class="row">
             <span class="grow small">{it.title}{#if it.reason} — <span class="muted">{it.reason}</span>{/if}</span>
-            <span class="mono small" class:minus={it.points < 0 || it.time_sec > 0}>
-              {it.points ? (it.points > 0 ? '+' : '−') + Math.abs(it.points) : ''}{it.points && it.time_sec ? ', ' : ''}{it.time_sec
+            <span class="mono small" class:minus={(!timeMode && it.points < 0) || it.time_sec > 0}>
+              {it.points && !timeMode ? (it.points > 0 ? '+' : '−') + Math.abs(it.points) : ''}{it.points && !timeMode && it.time_sec ? ', ' : ''}{it.time_sec
                 ? (it.time_sec > 0 ? '+' : '−') + clock(Math.abs(it.time_sec))
                 : ''}
             </span>
@@ -243,8 +246,10 @@
         <div class="row wrap">
           <input class="short" bind:value={timeDelta} placeholder="+5m / -2m" />
           <button class="secondary" onclick={adjustTime} disabled={!timeDelta.trim()}>Изменить время</button>
-          <input class="short" bind:value={pointsDelta} placeholder="+5 / -3" inputmode="numeric" />
-          <button class="secondary" onclick={adjustPoints} disabled={!pointsDelta.trim()}>Изменить баллы</button>
+          {#if !timeMode}
+            <input class="short" bind:value={pointsDelta} placeholder="+5 / -3" inputmode="numeric" />
+            <button class="secondary" onclick={adjustPoints} disabled={!pointsDelta.trim()}>Изменить баллы</button>
+          {/if}
         </div>
       {/if}
 

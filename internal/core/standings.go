@@ -16,13 +16,21 @@ type Standing struct {
 	Status   TeamStatus    `json:"status"`
 	Points   int           `json:"points"`
 	Levels   int           `json:"levels"`
-	Elapsed  time.Duration `json:"elapsed"` // чистое время + штрафы
+	Elapsed  time.Duration `json:"elapsed"` // итог: чистое время + штрафы − бонусы
+	Penalty  time.Duration `json:"penalty"` // штрафы и поправки ведущего
+	Bonus    time.Duration `json:"bonus"`   // вычтено за бонусы
 	Finished bool          `json:"finished"`
 }
 
 // Elapsed — время команды на момент now: от её старта до финиша (или now),
-// не больше лимита, плюс штрафное время.
+// не больше лимита, плюс штрафное время, минус бонусное. В начале игры бонусы
+// могут перевесить — тогда время отрицательное, это честно для сравнения.
 func (g *Game) Elapsed(team *Team, now time.Time) time.Duration {
+	return g.CleanElapsed(team, now) + team.PenaltyTime - team.BonusTime
+}
+
+// CleanElapsed — чистое время команды: от старта до финиша (или now), не больше лимита.
+func (g *Game) CleanElapsed(team *Team, now time.Time) time.Duration {
 	if team.StartedAt.IsZero() {
 		return 0
 	}
@@ -37,7 +45,7 @@ func (g *Game) Elapsed(team *Team, now time.Time) time.Duration {
 	if d < 0 {
 		d = 0
 	}
-	return d + team.PenaltyTime
+	return d
 }
 
 // Standings — живая таблица на момент now.
@@ -57,6 +65,8 @@ func (g *Game) Standings(now time.Time) []Standing {
 			Points:   t.Points,
 			Levels:   t.LevelsDone,
 			Elapsed:  g.Elapsed(t, now),
+			Penalty:  t.PenaltyTime,
+			Bonus:    t.BonusTime,
 			Finished: t.Status == TeamStatusFinished,
 		})
 	}
@@ -143,11 +153,11 @@ func (g *Game) LeaderboardFor(teamID string, now time.Time) ([]Standing, bool) {
 func (g *Game) ScoringRule() string {
 	switch g.Scenario.Scoring.Mode {
 	case scenario.ScoringTime:
-		return "Места — по числу пройденных уровней; при равенстве выше тот, у кого меньше время " +
-			"(со старта команды плюс штрафные минуты за подсказки). Баллы на места не влияют."
+		return "Места — по числу пройденных уровней; при равенстве выше тот, у кого меньше время: " +
+			"со старта команды плюс штрафные минуты за подсказки, минус минуты за бонусы."
 	case scenario.ScoringMixed:
 		return "Места — по баллам: за пройденные уровни и бонусы, минус штрафы. " +
-			"При равенстве баллов выше тот, у кого меньше время (со старта команды плюс штрафные минуты)."
+			"При равенстве баллов выше тот, у кого меньше время (со старта команды плюс штрафные минуты, минус бонусные)."
 	default:
 		return "Места — по баллам: за пройденные уровни и бонусы, минус штрафы. " +
 			"При равенстве баллов выше тот, кто прошёл больше уровней."

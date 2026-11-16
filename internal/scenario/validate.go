@@ -132,6 +132,11 @@ func (v *validator) validateStart() {
 	}
 }
 
+// timeMode — строгие проверки зачёта по времени (только при загрузке новой версии).
+func (v *validator) timeMode() bool {
+	return v.opt.Strict && v.s.Scoring.Mode == ScoringTime
+}
+
 func (v *validator) validateScoring() {
 	if !oneOf(v.s.Scoring.Mode, ScoringTime, ScoringPoints, ScoringMixed) {
 		v.add(p("scoring", "mode"), "ожидалось %s", list(ScoringTime, ScoringPoints, ScoringMixed))
@@ -221,6 +226,9 @@ func (v *validator) validateLevels() {
 		if l.Points < 0 {
 			v.add(lp("points"), "баллы не могут быть отрицательными")
 		}
+		if v.timeMode() && l.Points != 0 {
+			v.add(lp("points"), "в зачёте по времени (scoring: time) баллов нет — уберите points")
+		}
 
 		switch l.Pin {
 		case routes.PinNone:
@@ -266,6 +274,9 @@ func (v *validator) validateLevels() {
 				if pen := h.Penalty; pen != nil && pen.Points < 0 {
 					v.add(append(hp, "penalty", "points"), "штраф не может быть отрицательным")
 				}
+				if pen := h.Penalty; pen != nil && pen.Points != 0 && v.timeMode() {
+					v.add(append(hp, "penalty", "points"), "в зачёте по времени штраф — только временем: penalty: {time: 10m}")
+				}
 				continue
 			}
 			if h.Penalty != nil {
@@ -293,6 +304,16 @@ func (v *validator) validateLevels() {
 			}
 			if b.Points < 0 {
 				v.add(append(bp, "points"), "баллы не могут быть отрицательными")
+			}
+			if b.Time < 0 {
+				v.add(append(bp, "time"), "время бонуса не может быть отрицательным")
+			}
+			if v.timeMode() {
+				if b.Points != 0 {
+					v.add(append(bp, "points"), "в зачёте по времени бонус — только временем: time: 5m вместо points")
+				} else if b.Time == 0 {
+					v.add(bp, "бонус ничего не даёт: укажите time — сколько минут вычесть, например time: 5m")
+				}
 			}
 			v.validateAnswer(b.Answer, append(bp, "answer"))
 		}
