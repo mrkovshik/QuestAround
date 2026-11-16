@@ -1,0 +1,100 @@
+# Тесты на каждый пуш и PR; после зелёных тестов в main — выкладка на сервер.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Выложить, даже если сейчас идёт игра"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: qa
+          POSTGRES_DB: qa_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U qa" --health-interval 2s --health-timeout 2s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Фронтенд — зависимости
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+      - name: Фронтенд — проверка типов
+        working-directory: web
+        run: npm run check
+      - name: Фронтенд — сборка
+        working-directory: web
+        run: npm run build
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Go — vet
+        run: go vet ./...
+      - name: Go — тесты (с Postgres)
+        env:
+          QUESTAROUND_TEST_DATABASE_URL: postgres://qa:qa@localhost:5432/qa_test?sslmode=disable
+        run: go test -race -count=1 ./...
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Окружение production: секреты лежат там; при желании можно включить ручное подтверждение.
+    environment: production
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    steps:
+      - name: Проверить настройки
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "::warning::Секреты деплоя не заданы — выкладка пропущена (см. deploy/README.md, «Автодеплой»)."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+      - name: Выложить на сервер
+        if: env.SKIP != '1'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          FORCE: ${{ inputs.force && 'force' || '' }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          set +e
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 \
+            "root@$HOST" deploy "$GITHUB_SHA" $FORCE
+          code=$?
+          set -e
+          if [ "$code" = 75 ]; then
+            echo "::warning::Идёт игра — обновление отложено. Когда игра закончится: Actions → CI → Run workflow (можно с force)."
+            exit 0
+          fi
+          exit "$code"
