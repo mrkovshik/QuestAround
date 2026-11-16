@@ -74,6 +74,16 @@
     }
   }
 
+  // Последняя версия каждого сценария — для конструктора.
+  const latest = $derived(
+    Object.values(
+      scenarios.reduce<Record<string, ScenarioVersion>>((m, sv) => {
+        if (!m[sv.slug] || m[sv.slug].version < sv.version) m[sv.slug] = sv
+        return m
+      }, {}),
+    ).sort((a, b) => b.created_at.localeCompare(a.created_at)),
+  )
+
   const day = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 
   async function act(f: () => Promise<unknown>) {
@@ -168,6 +178,32 @@
         </table>
         <p class="muted small">Игры в корзине не видны игрокам. Через 30 дней после удаления они стираются автоматически вместе с фото.</p>
       {/if}
+    {/if}
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <h2 class="grow">Сценарии</h2>
+      <button onclick={() => router.go('/admin/scenarios/new')}>＋ Новый сценарий</button>
+    </div>
+    {#if latest.length === 0}
+      <p class="muted">Сценариев пока нет — создайте в конструкторе или загрузите YAML ниже.</p>
+    {:else}
+      <table class="grid">
+        <thead>
+          <tr><th>Сценарий</th><th class="num">Версия</th><th>Изменён</th><th></th></tr>
+        </thead>
+        <tbody>
+          {#each latest as sv (sv.slug)}
+            <tr class="click" onclick={() => router.go(`/admin/scenarios/${sv.id}`)}>
+              <td class="mono">{sv.slug}</td>
+              <td class="num">{sv.version}</td>
+              <td>{fmt(sv.created_at)}</td>
+              <td class="act"><button class="ghost small">Редактировать</button></td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     {/if}
   </section>
 

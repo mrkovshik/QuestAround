@@ -1,0 +1,75 @@
+/* Общие стили форм конструктора. */
+.editor .field .lbl {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.editor .field .hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+.editor .msg {
+  font-size: 0.85rem;
+  color: var(--bad);
+  margin-top: 0.25rem;
+}
+.editor .msg.block {
+  background: var(--bad-soft);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  margin-top: 0;
+}
+.editor .field.err input,
+.editor .field.err textarea,
+.editor .field.err select {
+  border-color: var(--bad);
+}
+.editor .grid2,
+.editor .grid3 {
+  display: grid;
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+.editor .grid2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.editor .grid3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.editor .wide {
+  grid-column: 1 / -1;
+}
+.editor h3 {
+  margin-bottom: 0.25rem;
+}
+.editor label.chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin: 0;
+  cursor: pointer;
+}
+.editor label.chk input {
+  width: auto;
+}
+.editor select {
+  max-width: 100%;
+}
+.editor textarea {
+  resize: vertical;
+}
+.editor .flash {
+  animation: flash 1.2s ease-out;
+  border-radius: 8px;
+}
+@keyframes flash {
+  0% {
+    box-shadow: 0 0 0 4px var(--warn);
+  }
+  100% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}

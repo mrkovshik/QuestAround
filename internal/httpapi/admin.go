@@ -3,7 +3,6 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,21 +29,8 @@ type scenarioVersionDTO struct {
 
 // uploadScenario: тело — YAML. Невалидный сценарий → 422 со списком ошибок по строкам.
 func (s *Server) uploadScenario(w http.ResponseWriter, r *http.Request) {
-	src, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxScenarioSize))
+	src, sc, err := s.parseUploaded(w, r)
 	if err != nil {
-		s.writeError(w, r, err)
-		return
-	}
-	sc, err := scenario.ParseWith(src, scenario.Options{Strict: true, MediaExists: func(n string) bool {
-		_, ok := s.cfg.Media.AssetKey(n)
-		return ok
-	}})
-	if err != nil {
-		var se scenario.Errors
-		if !errors.As(err, &se) {
-			// синтаксис/структура: одна ошибка без номера строки в нашем формате
-			err = scenario.Errors{{Msg: err.Error()}}
-		}
 		s.writeError(w, r, err)
 		return
 	}

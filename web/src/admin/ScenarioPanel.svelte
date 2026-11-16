@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ApiError } from '../lib/api'
+  import { router } from '../lib/router.svelte'
   import { ScenarioConflict, type ScenarioVersion } from './adminApi'
   import type { RunLive } from './runLive.svelte'
 
@@ -71,6 +72,9 @@
       <span class="mono">{current.slug} · версия {current.version}</span>
     {/if}
     <button class="ghost small" onclick={() => (showSource = !showSource)}>{showSource ? 'Скрыть YAML' : 'Показать YAML'}</button>
+    {#if current}
+      <button class="ghost small" title="Открыть в конструкторе: сохранение создаст новую версию" onclick={() => router.go(`/admin/scenarios/${current!.id}`)}>Редактировать</button>
+    {/if}
     {#if editable && options.length}
       <span class="grow"></span>
       <select bind:value={pick}>
