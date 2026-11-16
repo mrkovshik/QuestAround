@@ -182,6 +182,12 @@ export class AdminApi {
   scenarios = () => this.req<ScenarioVersion[]>('GET', '/scenarios')
   scenario = (id: string) => this.req<ScenarioVersion>('GET', `/scenarios/${id}`)
   uploadScenario = (yaml: string) => this.req<ScenarioVersion>('POST', '/scenarios', undefined, yaml)
+  /** Проверка без сохранения (конструктор). */
+  validateScenario = (yaml: string) =>
+    this.req<{ ok: boolean; id: string; title: string; levels: number; next_version: number }>('POST', '/scenarios/validate', undefined, yaml)
+  /** Маршруты команд, как их построит игра при старте (для random — пример). */
+  previewRoutes = (yaml: string, teams: number) =>
+    this.req<{ mode: string; routes?: string[][] }>('POST', `/scenarios/routes?teams=${teams}`, undefined, yaml)
   changeScenario = (run: string, scenario_version_id: string) => this.req<Run>('PUT', `/runs/${run}/scenario`, { scenario_version_id })
 
   dashboard = (run: string) => this.req<Dashboard>('GET', `/runs/${run}/dashboard`)
