@@ -162,6 +162,8 @@ function normalizeLevel(l: Level) {
   l.id = l.id == null ? '' : String(l.id)
   l.answers = Array.isArray(l.answers) ? l.answers : []
   for (const b of l.bonuses ?? []) b.answer ??= { type: 'photo' }
+  // after: 0 приходит из YAML числом — в форме длительности строкой
+  for (const h of l.hints ?? []) if (typeof h.after === 'number') h.after = String(h.after)
 }
 
 /** YAML → черновик. Бросает Error с понятным текстом при синтаксической ошибке. */
@@ -205,6 +207,11 @@ function order(d: Draft): Record<string, unknown> {
   return out
 }
 
+// Длительности: «0» у них означает «не задано», кроме after у подсказки,
+// где after: 0 — «автоматом не выдавать».
+const DURATIONS = new Set(['after', 'time_limit', 'interval', 'freeze_before_end', 'per', 'time'])
+const isZeroDuration = (v: string) => /^0+(\.0+)?[smh]?$/.test(v.trim())
+
 // Списки строк, где пустые строки — это просто незаполненная строка в форме.
 const STRING_LISTS = new Set(['values', 'options', 'media', 'hint_after', 'all_of', 'any_of', 'of'])
 
@@ -215,8 +222,11 @@ const STRING_LISTS = new Set(['values', 'options', 'media', 'hint_after', 'all_o
  */
 function clean(v: unknown, key = ''): unknown {
   if (v === null || v === undefined || v === '' || v === false) return undefined
-  if (typeof v === 'number') return Number.isFinite(v) && (v !== 0 || key === 'version') ? v : undefined
-  if (typeof v === 'string') return v.trim() === '' ? undefined : v
+  if (typeof v === 'number') return Number.isFinite(v) && (v !== 0 || key === 'version' || key === 'after') ? v : undefined
+  if (typeof v === 'string') {
+    if (DURATIONS.has(key) && isZeroDuration(v)) return key === 'after' ? 0 : undefined
+    return v.trim() === '' ? undefined : v
+  }
   if (Array.isArray(v)) {
     if (STRING_LISTS.has(key)) {
       const a = v.map((x) => (typeof x === 'string' ? x.trim() : x)).filter((x) => x !== '' && x != null)
@@ -328,7 +338,7 @@ export function removeLevelRefs(d: Draft, id: string) {
 /** «15» → «15m»: число без единиц считаем минутами. */
 export function fixDuration(v: string | undefined): string | undefined {
   const s = (v ?? '').trim().replace(/\s+/g, '')
-  if (/^\d+$/.test(s)) return s === '0' ? '' : s + 'm'
+  if (/^\d+$/.test(s)) return isZeroDuration(s) ? '0' : s + 'm'
   return s.replace(/мин$/, 'm').replace(/ч$/, 'h').replace(/с$/, 's')
 }
 

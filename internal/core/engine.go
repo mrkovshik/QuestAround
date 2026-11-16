@@ -637,7 +637,7 @@ func (g *Game) requestHint(t *tx, c RequestHint) error {
 	}
 	h := sl.Hints[c.HintIdx]
 	if !h.OnRequest {
-		return ErrNotAllowed // откроется по таймеру
+		return ErrNotAllowed // только по таймеру
 	}
 	if ls.Hints[c.HintIdx] {
 		return ErrHintAlreadyOpen

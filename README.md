@@ -51,6 +51,10 @@ web/                      PWA игрока: Svelte 5 + Vite + TypeScript
   flow: linear + routes: same, scoring: points, leaderboard: always,
   answer_normalize: trim, lower, yo_to_e.
 - Автоподсказки без `after` получают время из `defaults.hint_after` по порядку.
+- Подсказка может быть сразу и по запросу, и по таймеру: `{on_request: true, after: 20m, penalty: {time: 10m}}` —
+  команда берёт её раньше со штрафом, иначе она открывается сама через 20 минут без штрафа.
+  У `on_request` без `after` (или с `after: 0`) — только по запросу. `after: 0` без `on_request` — ошибка
+  (подсказка не откроется никогда).
 - Проверки: id, типы ответов и лишние поля в них, regex компилируется, координаты,
   require, подсказки и штрафы, бонусы, pin/chain, explicit-маршруты, граф unlock
   (ссылки, циклы, стартовый уровень), staggered без interval, заморозка лидерборда.
