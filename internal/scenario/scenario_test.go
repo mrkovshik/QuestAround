@@ -54,6 +54,44 @@ func TestParsePilot(t *testing.T) {
 	}
 }
 
+func TestHintRequestAndTimer(t *testing.T) {
+	s, err := Parse([]byte(`
+version: 1
+id: h
+title: h
+defaults: {hint_after: [15m, 30m]}
+levels:
+  - id: a
+    task: x
+    answers: [{type: photo}]
+    hints:
+      - {text: by-schedule}
+      - {on_request: true, after: 20m, penalty: {time: 10m}, text: both}
+      - {on_request: true, penalty: {time: 5m}, text: request-only}
+      - {on_request: true, after: 0, text: request-only-explicit}
+      - {text: second-by-schedule}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hs := s.Levels[0].Hints
+	want := []struct {
+		after time.Duration
+		auto  bool
+	}{
+		{15 * time.Minute, true},
+		{20 * time.Minute, true}, // по запросу или сама
+		{0, false},               // только по запросу
+		{0, false},
+		{30 * time.Minute, true}, // подсказки по запросу не сдвигают расписание
+	}
+	for i, w := range want {
+		if hs[i].After.D() != w.after || hs[i].IsAuto() != w.auto {
+			t.Errorf("hints[%d]: after=%s auto=%v, ожидали %s %v", i, hs[i].After, hs[i].IsAuto(), w.after, w.auto)
+		}
+	}
+}
+
 func TestDefaults(t *testing.T) {
 	s, err := Parse([]byte(`
 version: 1
@@ -247,6 +285,17 @@ func TestValidationErrors(t *testing.T) {
       - {after: 5m, text: h, penalty: {time: 1m}}
 `,
 			want: "только у подсказок on_request",
+		},
+		{
+			name: "after: 0 без on_request — никогда не откроется",
+			yaml: head + `levels:
+  - id: a
+    task: x
+    answers: [{type: photo}]
+    hints:
+      - {after: 0, text: h}
+`,
+			want: "никогда не откроется",
 		},
 		{
 			name: "штраф и временем, и баллами",

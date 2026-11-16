@@ -195,16 +195,33 @@ type Answer struct {
 	MaxAccuracyM float64   `yaml:"max_accuracy_m"` // geo, 0 — не проверять
 }
 
+// Hint — подсказка уровня. Может открываться по таймеру, по запросу или
+// и так и так: по запросу раньше (со штрафом) либо сама через after (без штрафа).
+//
+//	on_request | after        | поведение
+//	-----------+--------------+-------------------------------------------------
+//	нет        | не задан     | по таймеру из defaults.hint_after
+//	нет        | 15m          | по таймеру через 15m
+//	нет        | 0            | ошибка: подсказка никогда не откроется
+//	да         | не задан / 0 | только по запросу
+//	да         | 15m          | по запросу или сама через 15m
 type Hint struct {
 	After     Duration `yaml:"after"`      // через сколько после открытия уровня
-	OnRequest bool     `yaml:"on_request"` // открывается по запросу
-	Penalty   *Penalty `yaml:"penalty"`    // только для on_request
+	OnRequest bool     `yaml:"on_request"` // можно взять по запросу
+	Penalty   *Penalty `yaml:"penalty"`    // только для on_request; при открытии по таймеру не начисляется
 	Text      string   `yaml:"text"`
 	Media     []string `yaml:"media"`
+
+	// AfterSet — after явно указан в YAML (в том числе after: 0).
+	AfterSet bool `yaml:"-"`
 }
 
-// IsAuto — подсказка по таймеру (явному или из defaults.hint_after).
-func (h Hint) IsAuto() bool { return !h.OnRequest }
+// IsAuto — подсказка открывается сама по таймеру (после разбора сценария
+// время из defaults.hint_after уже подставлено в After).
+func (h Hint) IsAuto() bool { return h.After > 0 }
+
+// usesSchedule — время берётся из defaults.hint_after.
+func (h Hint) usesSchedule() bool { return !h.OnRequest && !h.AfterSet }
 
 type Penalty struct {
 	Time   Duration `yaml:"time"`

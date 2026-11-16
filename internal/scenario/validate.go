@@ -265,9 +265,7 @@ func (v *validator) validateLevels() {
 			}
 			v.validateMedia(hp, h.Media)
 			if h.OnRequest {
-				if h.After != 0 {
-					v.add(append(hp, "after"), "подсказка не может быть одновременно по таймеру и по запросу")
-				}
+				// after > 0 — откроется и сама (без штрафа); 0 или не задан — только по запросу.
 				if pen := h.Penalty; pen != nil && (pen.Time == 0) == (pen.Points == 0) {
 					v.add(append(hp, "penalty"), "укажите ровно одно: time или points")
 				}
@@ -282,7 +280,10 @@ func (v *validator) validateLevels() {
 			if h.Penalty != nil {
 				v.add(append(hp, "penalty"), "штраф бывает только у подсказок on_request")
 			}
-			if h.After == 0 && auto >= len(v.s.Defaults.HintAfter) {
+			if h.AfterSet && h.After == 0 {
+				v.add(append(hp, "after"), "after: 0 — подсказка никогда не откроется: укажите время или включите on_request")
+			}
+			if h.usesSchedule() && auto >= len(v.s.Defaults.HintAfter) {
 				v.add(hp, "у подсказки нет after, а в defaults.hint_after только %d значений", len(v.s.Defaults.HintAfter))
 			}
 			auto++

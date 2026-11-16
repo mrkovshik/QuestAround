@@ -56,8 +56,26 @@ with sync_playwright() as p:
     lvl.locator("[data-path='levels[0].task'] textarea").fill("Найдите год на табличке")
     lvl.locator("[data-path='levels[0].answers[0].values'] textarea").fill("1864")
     lvl.locator("[data-path='levels[0].pin'] select").select_option("first")
-    lvl.locator("button", has_text="＋ по запросу").click()
+    # подсказка: по запросу со штрафом и сама через 20 минут
+    lvl.locator("button", has_text="＋ подсказка").click()
     lvl.locator("[data-path='levels[0].hints[0].text'] textarea").fill("Слева от ворот")
+    lvl.locator("[data-path='levels[0].hints[0].on_request'] input").check()
+    expect(lvl.locator("[data-path='levels[0].hints[0].penalty.time'] input")).to_have_value("10m")
+    after = lvl.locator("[data-path='levels[0].hints[0].after'] input")
+    after.fill("20")
+    after.blur()
+    expect(after).to_have_value("20m")
+    expect(lvl.locator("[data-path='levels[0].hints[0]'] .badge")).to_have_text("по запросу или сама через 20 мин")
+    # вторая: 0 без «по запросу» — сервер ругается, с «по запросу» — только по запросу
+    lvl.locator("button", has_text="＋ подсказка").click()
+    lvl.locator("[data-path='levels[0].hints[1].text'] textarea").fill("Ищите на столбе")
+    after1 = lvl.locator("[data-path='levels[0].hints[1].after'] input")
+    after1.fill("0")
+    after1.blur()
+    expect(lvl.locator("[data-path='levels[0].hints[1].after'] .msg")).to_contain_text("никогда не откроется", timeout=5000)
+    lvl.locator("[data-path='levels[0].hints[1].on_request'] input").check()
+    expect(lvl.locator("[data-path='levels[0].hints[1]'] .badge")).to_have_text("только по запросу")
+    expect(lvl.locator("[data-path='levels[0].hints[1].after'] .msg")).to_have_count(0, timeout=5000)
 
     # --- уровень 2: геоточка + бонус-фото ---
     ed.locator("button", has_text="＋ уровень").click()
@@ -133,7 +151,8 @@ with sync_playwright() as p:
     # --- YAML ---
     ed.locator(".nav", has_text="YAML").click()
     src = ed.locator(".yaml textarea").input_value()
-    for want in ["id: test-konstruktora", "routes: rotate", "pin: first", "point: [44.6338, 39.1352]", "on_request: true"]:
+    for want in ["id: test-konstruktora", "routes: rotate", "pin: first", "point: [44.6338, 39.1352]",
+                 "on_request: true", "after: 20m", "after: 0", "penalty: {time: 10m}"]:
         assert want in src, f"нет в YAML: {want}\n{src}"
     page.screenshot(path=f"{SHOTS}/e05-yaml.png")
 

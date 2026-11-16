@@ -113,8 +113,13 @@
             {#if h.penalty_sec}<span class="fine">(+{minutes(h.penalty_sec)})</span>{/if}
             {#if h.penalty_points}<span class="fine">(−{points(h.penalty_points)})</span>{/if}
           </button>
+          {#if h.opens_at}
+            <div class="muted small free">или откроется сама, без штрафа, через {clock((Date.parse(h.opens_at) - live.now) / 1000)}</div>
+          {/if}
         {:else if active && h.on_request}
-          <div class="muted small">Подсказку {h.index + 1} может взять капитан.</div>
+          <div class="muted small">
+            Подсказку {h.index + 1} может взять капитан{#if h.opens_at}, или она откроется сама через {clock((Date.parse(h.opens_at) - live.now) / 1000)}{/if}.
+          </div>
         {/if}
       {/each}
     </div>
@@ -188,6 +193,10 @@
   .choices {
     display: grid;
     gap: 0.5rem;
+  }
+  .free {
+    margin-top: 0.25rem;
+    text-align: center;
   }
   .hints {
     margin-top: 0.9rem;

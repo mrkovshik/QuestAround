@@ -4,7 +4,7 @@
   import Dur from './Dur.svelte'
   import Field from './Field.svelte'
   import MediaPicker from './MediaPicker.svelte'
-  import { ID_RE, cloneLevel, newAnswer, removeLevelRefs, renameLevel, uniqueId, type Hint, type Level } from './model'
+  import { ID_RE, cloneLevel, humanDuration, newAnswer, removeLevelRefs, renameLevel, uniqueId, type Hint, type Level } from './model'
   import { useEditor } from './state.svelte'
 
   let { level, index }: { level: Level; index: number } = $props()
@@ -13,7 +13,6 @@
   const d = $derived(ed.draft)
   const ownErrs = $derived(ed.issues.filter((x) => x.path === P).map((x) => x.message))
   const others = $derived(d.levels.filter((l) => l !== level))
-  const autoHints = $derived((level.hints ?? []).filter((h) => !h.on_request).length)
   const hintAfter = $derived((d.defaults.hint_after ?? []).filter(Boolean))
 
   // id: правим черновик, переименование ссылок — по blur.
@@ -39,9 +38,50 @@
     ed.view = index + 1
   }
 
-  function addHint(onRequest: boolean) {
-    const h: Hint = onRequest ? { on_request: true, penalty: ed.hasPoints && !ed.hasTime ? { points: 5 } : { time: '10m' }, text: '' } : { text: '' }
-    level.hints = [...(level.hints ?? []), h]
+  function addHint() {
+    level.hints = [...(level.hints ?? []), { text: '' }]
+  }
+
+  const isZero = (v?: string) => !!v && /^0+[smh]?$/.test(v.trim())
+  const hasAfter = (h: Hint) => !!h.after?.trim()
+
+  // Время из расписания (defaults.hint_after) для i-й подсказки, если она его использует:
+  // расписание раздаётся по порядку подсказкам без «по запросу» — как на сервере.
+  function scheduled(i: number): string | undefined {
+    const hints = level.hints ?? []
+    if (hints[i]?.on_request) return undefined
+    const k = hints.slice(0, i).filter((x) => !x.on_request).length
+    return hintAfter[k]
+  }
+
+  function summary(h: Hint, sched?: string): string {
+    const auto = hasAfter(h) && !isZero(h.after) ? h.after : !h.on_request && !hasAfter(h) ? sched : undefined
+    if (h.on_request) return auto ? `по запросу или сама через ${humanDuration(auto) || auto}` : 'только по запросу'
+    if (isZero(h.after)) return 'не откроется'
+    return auto ? `сама через ${humanDuration(auto) || auto}` : 'нет времени'
+  }
+
+  function afterHint(h: Hint, sched?: string): string {
+    if (h.on_request)
+      return '0 или пусто — только по запросу. Если указать время, подсказка откроется сама и без штрафа, когда команда не взяла её раньше.'
+    if (isZero(h.after)) return '0 — не выдавать автоматически. Тогда включите «Выдавать по запросу», иначе подсказка не откроется никогда.'
+    const zero = ' 0 — не выдавать автоматически (только вместе с «по запросу»).'
+    return sched
+      ? `Пусто — по расписанию из настроек игры: через ${humanDuration(sched) || sched}.${zero}`
+      : `Укажите время или задайте расписание подсказок в настройках игры.${zero}`
+  }
+
+  function setRequest(h: Hint, on: boolean, sched?: string) {
+    if (on) {
+      h.on_request = true
+      h.penalty ??= ed.hasPoints && !ed.hasTime ? { points: 5 } : { time: '10m' }
+      // подсказка по расписанию не перестаёт открываться сама — фиксируем её время
+      if (!hasAfter(h) && sched) h.after = sched
+    } else {
+      delete h.on_request
+      delete h.penalty
+      if (isZero(h.after)) delete h.after
+    }
   }
 
   function addBonus() {
@@ -198,9 +238,11 @@
     <h3>Подсказки</h3>
     {#each level.hints ?? [] as h, i (h)}
       {@const hp = `${P}.hints[${i}]`}
+      {@const sched = scheduled(i)}
       <div class="item" data-path={hp}>
         <div class="row itemhead">
-          <span class="badge" class:warn={h.on_request}>{h.on_request ? 'по запросу, со штрафом' : 'по таймеру'}</span>
+          <strong class="small">Подсказка {i + 1}</strong>
+          <span class="badge" class:warn={h.on_request}>{summary(h, sched)}</span>
           <span class="grow"></span>
           <button class="ghost small" onclick={() => moveItem(level.hints, i, -1)} disabled={i === 0}>↑</button>
           <button class="ghost small" onclick={() => moveItem(level.hints, i, 1)} disabled={i === (level.hints?.length ?? 0) - 1}>↓</button>
@@ -208,10 +250,13 @@
         </div>
         {#each ed.issues.filter((x) => x.path === hp) as x, k (k)}<div class="msg">{x.message}</div>{/each}
         <div class="grid2">
+          <div class="wide" data-path="{hp}.on_request">
+            <label class="chk"><input type="checkbox" checked={!!h.on_request} onchange={(e) => setRequest(h, e.currentTarget.checked, sched)} /> Выдавать по запросу</label>
+          </div>
           {#if h.on_request}
             {#if ed.hasTime}
               <Field label="Штраф временем" path="{hp}.penalty.time">
-                <Dur bind:value={() => h.penalty?.time, (v) => (h.penalty = { ...(h.penalty ?? {}), time: v, points: ed.hasPoints ? h.penalty?.points : undefined })} placeholder="10m" />
+                <Dur bind:value={() => h.penalty?.time, (v) => (h.penalty = { ...(h.penalty ?? {}), time: v })} placeholder="10m" />
               </Field>
             {/if}
             {#if ed.hasPoints}
@@ -219,15 +264,10 @@
                 <input type="number" min="0" bind:value={() => h.penalty?.points, (v) => (h.penalty = { ...(h.penalty ?? {}), points: v })} />
               </Field>
             {/if}
-          {:else}
-            <Field
-              label="Открыть через"
-              path="{hp}.after"
-              hint={h.after ? undefined : hintAfter.length ? 'Пусто — по расписанию из настроек игры' : 'Укажите время или задайте расписание подсказок в настройках игры'}
-            >
-              <Dur bind:value={h.after} placeholder={hintAfter[(level.hints ?? []).slice(0, i).filter((x) => !x.on_request).length] ?? '15m'} />
-            </Field>
           {/if}
+          <Field label="Открыть автоматически через" path="{hp}.after" hint={afterHint(h, sched)}>
+            <Dur bind:value={h.after} placeholder={h.on_request ? '0' : (sched ?? '15m')} />
+          </Field>
           <Field label="Текст" path="{hp}.text" wide>
             <textarea rows="2" bind:value={h.text}></textarea>
           </Field>
@@ -237,13 +277,7 @@
         </div>
       </div>
     {/each}
-    <div class="row wrap">
-      <button class="secondary small" onclick={() => addHint(false)}>＋ по таймеру</button>
-      <button class="secondary small" onclick={() => addHint(true)}>＋ по запросу</button>
-      {#if autoHints > hintAfter.length}
-        <span class="muted small">Автоподсказок без времени больше, чем значений в расписании ({hintAfter.length}) — укажите «Открыть через».</span>
-      {/if}
-    </div>
+    <button class="secondary small" onclick={addHint}>＋ подсказка</button>
   </section>
 
   <section class="card">

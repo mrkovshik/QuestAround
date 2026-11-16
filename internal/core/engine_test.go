@@ -219,6 +219,48 @@ func TestHints(t *testing.T) {
 	h.eq("на l2 нет автоподсказок", ok, false)
 }
 
+// Подсказка «по запросу или сама через after»: раньше — со штрафом, по таймеру — бесплатно.
+func TestHintRequestOrTimer(t *testing.T) {
+	const y = `
+version: 1
+id: x
+title: x
+scoring: {mode: time}
+levels:
+  - id: a
+    task: t
+    answers: [{type: code, values: ["1"]}]
+    hints:
+      - {on_request: true, after: 20m, penalty: {time: 10m}, text: both}
+      - {on_request: true, after: 0, penalty: {time: 5m}, text: request-only}
+`
+	// Сама по таймеру — без штрафа.
+	h := newHarness(t, y, "a")
+	h.do(StartRun{})
+	at, ok := h.g.NextDeadline()
+	h.eq("дедлайн подсказки", at, t0.Add(20*time.Minute))
+	h.eq("дедлайн есть", ok, true)
+	h.advance(20 * time.Minute)
+	ev := h.tick()
+	h.eq("открылась сама", len(ev), 1)
+	h.eq("триггер", ev[0].Payload.(HintOpened).Trigger, "timer")
+	h.eq("без штрафа", h.team("a").PenaltyTime, time.Duration(0))
+	h.eq("открыта только первая", h.team("a").Levels["a"].Hints, []bool{true, false})
+	h.fail(RequestHint{TeamID: "a", IsCaptain: true, LevelID: "a", HintIdx: 0}, ErrHintAlreadyOpen)
+	h.advance(time.Hour)
+	h.eq("after: 0 сама не открывается", len(h.tick()), 0)
+
+	// По запросу раньше таймера — со штрафом, таймер потом ничего не делает.
+	h = newHarness(t, y, "a")
+	h.do(StartRun{})
+	h.advance(5 * time.Minute)
+	h.do(RequestHint{TeamID: "a", IsCaptain: true, LevelID: "a", HintIdx: 0})
+	h.eq("штраф", h.team("a").PenaltyTime, 10*time.Minute)
+	h.advance(30 * time.Minute)
+	h.eq("таймер уже не нужен", len(h.tick()), 0)
+	h.eq("штраф не удвоился", h.team("a").PenaltyTime, 10*time.Minute)
+}
+
 func TestTimeLimitAndStandings(t *testing.T) {
 	h := newHarness(t, `
 version: 1
