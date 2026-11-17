@@ -18,6 +18,7 @@ levels:
     hints:
       - text: Табличка слева от ворот.
       - {on_request: true, penalty: {time: 5m}, text: Ищите на каменном столбе.}
+      - {on_request: true, available_after: 30m, penalty: {time: 15m}, text: Год — 1864.}
     bonuses:
       - {id: selfie, title: Селфи всей командой у ворот, answer: {type: photo}, points: 5}
   - id: riddle

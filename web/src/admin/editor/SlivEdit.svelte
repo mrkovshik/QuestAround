@@ -53,6 +53,12 @@
   {/if}
 {/snippet}
 
+{#snippet avail(get: () => string | undefined, set: (v: string | undefined) => void, p: string)}
+  <Field label="Кнопка появится через" path="{p}.available_after" hint="Пусто — сразу после открытия уровня. До этого — обратный отсчёт">
+    <Dur bind:value={get, set} placeholder="0" />
+  </Field>
+{/snippet}
+
 <section class="card">
   <h3>Сливы</h3>
   <p class="muted small">Кнопки у капитана под подсказками, с подтверждением и штрафом на кнопке.</p>
@@ -88,6 +94,7 @@
           </div>
         </Field>
         {@render penalty(loc.penalty, (p) => (loc.penalty = p), `${path}.location`)}
+        {@render avail(() => loc.available_after, (v) => (loc.available_after = v), `${path}.location`)}
       </div>
     {/if}
   </div>
@@ -101,6 +108,7 @@
       {@const sk = level.skip}
       <div class="grid2">
         {@render penalty(sk.penalty, (p) => (sk.penalty = p), `${path}.skip`)}
+        {@render avail(() => sk.available_after, (v) => (sk.available_after = v), `${path}.skip`)}
       </div>
     {/if}
   </div>

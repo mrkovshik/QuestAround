@@ -175,11 +175,14 @@ type Location struct {
 	Text    string    `yaml:"text"`  // адрес / описание места
 	Point   []float64 `yaml:"point"` // [lat, lng]; не задана — берётся точка geo-ответа уровня
 	Penalty *Penalty  `yaml:"penalty"`
+	// AvailableAfter — кнопка появляется через столько после открытия уровня.
+	AvailableAfter Duration `yaml:"available_after"`
 }
 
 // Skip — условия слива уровня. Баллы за уровень при сливе не начисляются.
 type Skip struct {
-	Penalty *Penalty `yaml:"penalty"`
+	Penalty        *Penalty `yaml:"penalty"`
+	AvailableAfter Duration `yaml:"available_after"`
 }
 
 // LocationPoint — точка для слива локации: явная или из первого geo-ответа.
@@ -238,8 +241,10 @@ type Hint struct {
 	After     Duration `yaml:"after"`      // через сколько после открытия уровня
 	OnRequest bool     `yaml:"on_request"` // можно взять по запросу
 	Penalty   *Penalty `yaml:"penalty"`    // только для on_request; при открытии по таймеру не начисляется
-	Text      string   `yaml:"text"`
-	Media     []string `yaml:"media"`
+	// AvailableAfter — кнопка «взять подсказку» появляется через столько после открытия уровня.
+	AvailableAfter Duration `yaml:"available_after"`
+	Text           string   `yaml:"text"`
+	Media          []string `yaml:"media"`
 
 	// AfterSet — after явно указан в YAML (в том числе after: 0).
 	AfterSet bool `yaml:"-"`

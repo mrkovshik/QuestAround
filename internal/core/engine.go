@@ -648,6 +648,9 @@ func (g *Game) requestHint(t *tx, c RequestHint) error {
 	if g.Scenario.Participants.HintRequests == scenario.HintRequestsCaptain && !isCaptain {
 		return ErrNotAllowed
 	}
+	if t.now.Before(ls.OpenedAt.Add(h.AvailableAfter.D())) {
+		return ErrNotAvailableYet
+	}
 	p := HintOpened{LevelID: c.LevelID, HintIdx: c.HintIdx, Trigger: "request"}
 	if h.Penalty != nil {
 		p.PenaltyTime = h.Penalty.Time.D()

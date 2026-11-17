@@ -85,6 +85,10 @@ with sync_playwright() as p:
     expect(lvl.locator("[data-path='levels[0].location.penalty.time'] input")).to_have_value("15m")
     lvl.locator("[data-path='levels[0].skip'] label.chk input").check()
     expect(lvl.locator("[data-path='levels[0].skip.penalty.time'] input")).to_have_value("30m")
+    sk_av = lvl.locator("[data-path='levels[0].skip.available_after'] input")
+    sk_av.fill("45")
+    sk_av.blur()
+    expect(sk_av).to_have_value("45m")
     page.screenshot(path=f"{SHOTS}/e02a-sliv.png", full_page=True)
 
     # --- уровень 2: геоточка + бонус-фото ---
@@ -168,7 +172,7 @@ with sync_playwright() as p:
     for want in ["id: test-konstruktora", "routes: rotate", "pin: first", "point: [44.6338, 39.1352]",
                  "on_request: true", "after: 20m", "after: 0", "penalty: {time: 10m}",
                  "    location:\n      text: Главный вход в парк\n      penalty: {time: 15m}",
-                 "    skip:\n      penalty: {time: 30m}", "    location: {}"]:
+                 "    skip:\n      penalty: {time: 30m}\n      available_after: 45m", "    location: {}"]:
         assert want in src, f"нет в YAML: {want}\n{src}"
     page.screenshot(path=f"{SHOTS}/e05-yaml.png")
 

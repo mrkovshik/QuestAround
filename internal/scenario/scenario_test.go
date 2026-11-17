@@ -571,3 +571,22 @@ levels:
 		t.Errorf("time бонуса: %v", d)
 	}
 }
+
+func TestAvailableAfterValidation(t *testing.T) {
+	src := head + `levels:
+  - id: a
+    task: x
+    answers: [{type: code, values: ["1"]}]
+    hints:
+      - {on_request: true, available_after: 30m, after: 20m, text: h}
+      - {after: 10m, available_after: 5m, text: h2}
+    skip: {available_after: 45m}
+`
+	_, err := Parse([]byte(src))
+	var errs Errors
+	if !errors.As(err, &errs) || len(errs) != 2 ||
+		!strings.Contains(errs[0].Error(), "не раньше, чем подсказка откроется сама") ||
+		!strings.Contains(errs[1].Error(), "только для подсказок по запросу") {
+		t.Fatalf("ожидали 2 ошибки, получили %v", err)
+	}
+}

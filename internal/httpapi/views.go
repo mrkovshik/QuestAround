@@ -68,7 +68,8 @@ type hintDTO struct {
 	PenaltySec    int64      `json:"penalty_sec,omitempty"`
 	PenaltyPoints int        `json:"penalty_points,omitempty"`
 	OpensAt       *time.Time `json:"opens_at,omitempty"`
-	Media         []string   `json:"media,omitempty"` // только у открытых
+	AvailableAt   *time.Time `json:"available_at,omitempty"` // кнопка по запросу появится в это время
+	Media         []string   `json:"media,omitempty"`        // только у открытых
 }
 
 type bonusDTO struct {
@@ -102,8 +103,9 @@ type levelDTO struct {
 }
 
 type penaltyDTO struct {
-	PenaltySec    int64 `json:"penalty_sec,omitempty"`
-	PenaltyPoints int   `json:"penalty_points,omitempty"`
+	PenaltySec    int64      `json:"penalty_sec,omitempty"`
+	PenaltyPoints int        `json:"penalty_points,omitempty"`
+	AvailableAt   *time.Time `json:"available_at,omitempty"` // кнопка появится в это время
 }
 
 func penaltyView(p *scenario.Penalty) penaltyDTO {
@@ -146,6 +148,9 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 	}
 	if sl.Location != nil {
 		loc := &locationDTO{penaltyDTO: penaltyView(sl.Location.Penalty), Revealed: ls.LocationRevealed}
+		if d := sl.Location.AvailableAfter.D(); d > 0 && ls.IsOpen() {
+			loc.AvailableAt = timePtr(ls.OpenedAt.Add(d))
+		}
 		if ls.LocationRevealed {
 			loc.Text = sl.Location.Text
 			if pt := sl.LocationPoint(); pt != nil {
@@ -156,6 +161,9 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 	}
 	if sl.Skip != nil {
 		sk := penaltyView(sl.Skip.Penalty)
+		if d := sl.Skip.AvailableAfter.D(); d > 0 && ls.IsOpen() {
+			sk.AvailableAt = timePtr(ls.OpenedAt.Add(d))
+		}
 		d.Skip = &sk
 	}
 	for i, a := range sl.Answers {
@@ -176,6 +184,9 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 		}
 		if h.IsAuto() && !hd.Opened && ls.IsOpen() {
 			hd.OpensAt = timePtr(ls.OpenedAt.Add(h.After.D()))
+		}
+		if h.OnRequest && h.AvailableAfter > 0 && !hd.Opened && ls.IsOpen() {
+			hd.AvailableAt = timePtr(ls.OpenedAt.Add(h.AvailableAfter.D()))
 		}
 		d.Hints = append(d.Hints, hd)
 	}

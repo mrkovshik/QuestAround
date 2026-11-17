@@ -132,6 +132,7 @@ var (
 	ErrAlreadyPending     = errors.New("ответ уже на проверке")
 	ErrUnknownHint        = errors.New("подсказка не найдена")
 	ErrHintAlreadyOpen    = errors.New("подсказка уже открыта")
+	ErrNotAvailableYet    = errors.New("ещё рано — кнопка станет доступна позже")
 	ErrNotAllowed         = errors.New("действие недоступно")
 	ErrNotPending         = errors.New("ответ не ждёт модерации")
 	ErrReasonRequired     = errors.New("укажите причину")

@@ -57,7 +57,10 @@
 
   function summary(h: Hint, sched?: string): string {
     const auto = hasAfter(h) && !isZero(h.after) ? h.after : !h.on_request && !hasAfter(h) ? sched : undefined
-    if (h.on_request) return auto ? `по запросу или сама через ${humanDuration(auto) || auto}` : 'только по запросу'
+    if (h.on_request) {
+      const btn = h.available_after && !isZero(h.available_after) ? ` (кнопка через ${humanDuration(h.available_after) || h.available_after})` : ''
+      return (auto ? `по запросу${btn} или сама через ${humanDuration(auto) || auto}` : `только по запросу${btn}`)
+    }
     if (isZero(h.after)) return 'не откроется'
     return auto ? `сама через ${humanDuration(auto) || auto}` : 'нет времени'
   }
@@ -81,6 +84,7 @@
     } else {
       delete h.on_request
       delete h.penalty
+      delete h.available_after
       if (isZero(h.after)) delete h.after
     }
   }
@@ -265,6 +269,9 @@
                 <input type="number" min="0" bind:value={() => h.penalty?.points, (v) => (h.penalty = { ...(h.penalty ?? {}), points: v })} />
               </Field>
             {/if}
+            <Field label="Кнопка появится через" path="{hp}.available_after" hint="Пусто — сразу. До этого игроки видят обратный отсчёт">
+              <Dur bind:value={h.available_after} placeholder="0" />
+            </Field>
           {/if}
           <Field label="Открыть автоматически через" path="{hp}.after" hint={afterHint(h, sched)}>
             <Dur bind:value={h.after} placeholder={h.on_request ? '0' : (sched ?? '15m')} />

@@ -267,7 +267,14 @@ func (v *validator) validateLevels() {
 			if h.OnRequest {
 				// after > 0 — откроется и сама (без штрафа); 0 или не задан — только по запросу.
 				v.validatePenalty(hp, h.Penalty)
+				if h.AvailableAfter > 0 && h.After > 0 && h.AvailableAfter >= h.After {
+					v.add(append(slices.Clip(hp), "available_after"),
+						"кнопка появится не раньше, чем подсказка откроется сама (after) — уменьшите available_after")
+				}
 				continue
+			}
+			if h.AvailableAfter != 0 {
+				v.add(append(slices.Clip(hp), "available_after"), "available_after — только для подсказок по запросу (on_request)")
 			}
 			if h.Penalty != nil {
 				v.add(append(hp, "penalty"), "штраф бывает только у подсказок on_request")

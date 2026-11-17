@@ -18,6 +18,17 @@ export function minutes(sec: number): string {
   return rest ? `${h} ч ${rest} мин` : `${h} ч`
 }
 
+/** Обратный отсчёт словами: «7 мин 34 сек», «1 ч 05 мин», «34 сек». */
+export function countdown(sec: number): string {
+  const s = Math.max(0, Math.ceil(sec))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const r = s % 60
+  if (h > 0) return `${h} ч ${String(m).padStart(2, '0')} мин`
+  if (m > 0) return `${m} мин ${String(r).padStart(2, '0')} сек`
+  return `${r} сек`
+}
+
 export function plural(n: number, one: string, few: string, many: string): string {
   const mod10 = n % 10
   const mod100 = n % 100

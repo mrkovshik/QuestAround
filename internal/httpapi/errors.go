@@ -60,6 +60,7 @@ var errorTable = []struct {
 	{core.ErrLevelNotOpen, 409, "level_not_open"},
 	{core.ErrAlreadyPending, 409, "already_pending"},
 	{core.ErrHintAlreadyOpen, 409, "hint_already_open"},
+	{core.ErrNotAvailableYet, 409, "not_available_yet"},
 	{core.ErrLocationRevealed, 409, "location_already_revealed"},
 	{core.ErrNoLocation, 404, "no_location"},
 	{core.ErrSkipNotAvailable, 404, "skip_not_available"},

@@ -16,6 +16,7 @@ export interface Hint {
   penalty_sec?: number
   penalty_points?: number
   opens_at?: string
+  available_at?: string
   media?: string[]
 }
 
@@ -33,6 +34,7 @@ export interface Bonus {
 export interface Penalty {
   penalty_sec?: number
   penalty_points?: number
+  available_at?: string
 }
 
 export interface LevelLocation extends Penalty {

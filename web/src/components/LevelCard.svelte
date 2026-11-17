@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Level } from '../lib/api'
   import type { Live } from '../lib/live.svelte'
-  import { clock, minutes, points } from '../lib/format'
+  import { countdown, minutes, points } from '../lib/format'
   import PhotoButton from './PhotoButton.svelte'
   import Pic from './Pic.svelte'
 
@@ -12,6 +12,17 @@
   const active = $derived(playing && level.open)
   const canRequest = $derived(active && (s.hint_requests === 'anyone' || s.is_captain))
   const sectors = $derived(level.answers.length > 1)
+
+  /** Секунд до момента iso; ≤ 0 — уже наступил (или не задан). */
+  const left = (iso?: string) => (iso ? (Date.parse(iso) - live.now) / 1000 : 0)
+  // Ближайшая подсказка по таймеру — для строки «До следующей подсказки…».
+  const nextTimer = $derived(
+    level.hints
+      .filter((h) => !h.opened && !h.on_request && h.opens_at && left(h.opens_at) > 0)
+      .sort((a, b) => Date.parse(a.opens_at!) - Date.parse(b.opens_at!))[0],
+  )
+  const locWait = $derived(left(level.location?.available_at))
+  const skipWait = $derived(left(level.skip?.available_at))
 
   let texts = $state<Record<string, string>>({})
 
@@ -131,20 +142,25 @@
               <div class="hmedia"><Pic src={m} /></div>
             {/each}
           </div>
-        {:else if active && !h.on_request && h.opens_at}
-          <div class="muted small">Подсказка {h.index + 1} откроется через {clock((Date.parse(h.opens_at) - live.now) / 1000)}</div>
+        {:else if active && !h.on_request && h === nextTimer}
+          <div class="timer">До следующей подсказки: <strong>{countdown(left(h.opens_at))}</strong></div>
         {:else if canRequest && h.on_request}
-          <button class="secondary block" onclick={() => takeHint(h.index, h)}>
+          {@const wait = left(h.available_at)}
+          <button class="secondary block" disabled={wait > 0} onclick={() => takeHint(h.index, h)}>
             Взять подсказку {h.index + 1}
             {#if h.penalty_sec}<span class="fine">(+{minutes(h.penalty_sec)})</span>{/if}
             {#if h.penalty_points}<span class="fine">(−{points(h.penalty_points)})</span>{/if}
           </button>
+          {#if wait > 0}
+            <div class="muted small free">Можно будет взять через {countdown(wait)}</div>
+          {/if}
           {#if h.opens_at}
-            <div class="muted small free">или откроется сама, без штрафа, через {clock((Date.parse(h.opens_at) - live.now) / 1000)}</div>
+            <div class="muted small free">или откроется сама, без штрафа, через {countdown(left(h.opens_at))}</div>
           {/if}
         {:else if active && h.on_request}
+          {@const wait = left(h.available_at)}
           <div class="muted small">
-            Подсказку {h.index + 1} может взять капитан{#if h.opens_at}, или она откроется сама через {clock((Date.parse(h.opens_at) - live.now) / 1000)}{/if}.
+            Подсказку {h.index + 1} может взять капитан{wait > 0 ? ` через ${countdown(wait)}` : ''}{#if h.opens_at}, или она откроется сама через {countdown(left(h.opens_at))}{/if}.
           </div>
         {/if}
       {/each}
@@ -170,25 +186,27 @@
     <div class="sliv">
       {#if s.is_captain}
         {#if level.location && !level.location.revealed}
-          <button class="ghost block" disabled={live.busy} onclick={slivLocation}>
+          <button class="ghost block" disabled={live.busy || locWait > 0} onclick={slivLocation}>
             Слить локацию <span class="fine">({fineShort(level.location)})</span>
           </button>
-          <div class="muted small desc">Покажем, где искать: адрес или точку на карте.</div>
+          <div class="muted small desc">
+            Покажем, где искать: адрес или точку на карте.{#if locWait > 0}<br /><strong>Доступно через {countdown(locWait)}</strong>{/if}
+          </div>
         {/if}
         {#if level.skip}
-          <button class="ghost block warnbtn" disabled={live.busy} onclick={slivLevel}>
+          <button class="ghost block warnbtn" disabled={live.busy || skipWait > 0} onclick={slivLevel}>
             Слить уровень <span class="fine">({fineShort(level.skip)})</span>
           </button>
           <div class="muted small desc">
-            Уровень засчитают без ответа{level.points && s.scoring_mode !== 'time' ? ', баллы за него не начислятся' : ''}.
+            Уровень засчитают без ответа{level.points && s.scoring_mode !== 'time' ? ', баллы за него не начислятся' : ''}.{#if skipWait > 0}<br /><strong>Доступно через {countdown(skipWait)}</strong>{/if}
           </div>
         {/if}
       {:else}
         <div class="muted small">
           Капитан может
-          {#if level.location && !level.location.revealed}слить локацию ({fineShort(level.location)}){/if}{#if level.location && !level.location.revealed && level.skip}
+          {#if level.location && !level.location.revealed}слить локацию ({fineShort(level.location)}{locWait > 0 ? `, через ${countdown(locWait)}` : ''}){/if}{#if level.location && !level.location.revealed && level.skip}
             или{/if}
-          {#if level.skip}слить уровень ({fineShort(level.skip)}){/if}.
+          {#if level.skip}слить уровень ({fineShort(level.skip)}{skipWait > 0 ? `, через ${countdown(skipWait)}` : ''}){/if}.
         </div>
       {/if}
     </div>
@@ -266,6 +284,16 @@
   .free {
     margin-top: 0.25rem;
     text-align: center;
+  }
+  .timer {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 10px;
+    background: var(--bg);
+    font-variant-numeric: tabular-nums;
+  }
+  .timer strong {
+    white-space: nowrap;
   }
   .sliv {
     margin-top: 0.75rem;

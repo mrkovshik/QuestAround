@@ -30,6 +30,7 @@ export interface Hint {
   after?: string
   on_request?: boolean
   penalty?: Penalty
+  available_after?: string
   text?: string
   media?: string[]
   [k: string]: unknown
@@ -63,8 +64,8 @@ export interface Level {
   require?: 'all' | 'any' | number | string
   answers: Answer[]
   hints?: Hint[]
-  location?: { text?: string; point?: number[]; penalty?: Penalty }
-  skip?: { penalty?: Penalty }
+  location?: { text?: string; point?: number[]; penalty?: Penalty; available_after?: string }
+  skip?: { penalty?: Penalty; available_after?: string }
   bonuses?: Bonus[]
   unlock?: Unlock
   [k: string]: unknown
@@ -211,7 +212,7 @@ function order(d: Draft): Record<string, unknown> {
 
 // Длительности: «0» у них означает «не задано», кроме after у подсказки,
 // где after: 0 — «автоматом не выдавать».
-const DURATIONS = new Set(['after', 'time_limit', 'interval', 'freeze_before_end', 'per', 'time'])
+const DURATIONS = new Set(['after', 'available_after', 'time_limit', 'interval', 'freeze_before_end', 'per', 'time'])
 const isZeroDuration = (v: string) => /^0+(\.0+)?[smh]?$/.test(v.trim())
 
 // Списки строк, где пустые строки — это просто незаполненная строка в форме.

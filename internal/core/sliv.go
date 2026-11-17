@@ -95,6 +95,9 @@ func (g *Game) handleSliv(t *tx, cmd Command) (bool, error) {
 		if sl.Location == nil {
 			return true, ErrNoLocation
 		}
+		if t.now.Before(team.Levels[c.LevelID].OpenedAt.Add(sl.Location.AvailableAfter.D())) {
+			return true, ErrNotAvailableYet
+		}
 		if team.Levels[c.LevelID].LocationRevealed {
 			return true, ErrLocationRevealed
 		}
@@ -109,6 +112,9 @@ func (g *Game) handleSliv(t *tx, cmd Command) (bool, error) {
 		}
 		if sl.Skip == nil {
 			return true, ErrSkipNotAvailable
+		}
+		if t.now.Before(team.Levels[c.LevelID].OpenedAt.Add(sl.Skip.AvailableAfter.D())) {
+			return true, ErrNotAvailableYet
 		}
 		p := LevelSkipped{LevelID: c.LevelID}
 		p.PenaltyTime, p.PenaltyPoints = penaltyOf(sl.Skip.Penalty)

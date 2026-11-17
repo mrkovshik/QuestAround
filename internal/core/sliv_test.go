@@ -53,3 +53,33 @@ func TestSliv(t *testing.T) {
 	}
 	h.eq("расшифровка", kinds, []string{"location", "skip"})
 }
+
+func TestAvailableAfter(t *testing.T) {
+	h := newHarness(t, `
+version: 1
+id: s
+title: s
+scoring: {mode: time}
+levels:
+  - id: a
+    task: t
+    answers: [{type: code, values: ["1"]}]
+    hints:
+      - {on_request: true, available_after: 10m, after: 30m, penalty: {time: 5m}, text: h}
+    location: {text: где-то, available_after: 20m}
+    skip: {available_after: 45m, penalty: {time: 30m}}
+`, "x")
+	h.do(StartRun{})
+	h.advance(9 * time.Minute)
+	h.fail(RequestHint{TeamID: "x", IsCaptain: true, LevelID: "a", HintIdx: 0}, ErrNotAvailableYet)
+	h.advance(time.Minute)
+	h.do(RequestHint{TeamID: "x", IsCaptain: true, LevelID: "a", HintIdx: 0})
+	h.fail(RevealLocation{TeamID: "x", IsCaptain: true, LevelID: "a"}, ErrNotAvailableYet)
+	h.advance(10 * time.Minute)
+	h.do(RevealLocation{TeamID: "x", IsCaptain: true, LevelID: "a"})
+	h.advance(24 * time.Minute)
+	h.fail(SkipLevel{TeamID: "x", IsCaptain: true, LevelID: "a"}, ErrNotAvailableYet)
+	h.advance(time.Minute)
+	h.do(SkipLevel{TeamID: "x", IsCaptain: true, LevelID: "a"})
+	h.eq("пройден", h.team("x").LevelsDone, 1)
+}

@@ -123,8 +123,15 @@ try:
       toast(pl, "Неверно")
       pl.screenshot(path=f"{SHOTS}/06-wrong.png")
 
+      # подсказка по таймеру — обратный отсчёт; по запросу с задержкой — кнопка неактивна, рядом отсчёт
+      expect(cap.locator(".timer")).to_contain_text("До следующей подсказки: 9 мин")
+      h3 = cap.locator("button", has_text="Взять подсказку 3")
+      expect(h3).to_be_disabled()
+      expect(cap.locator("text=Можно будет взять через 29 мин")).to_be_visible()
+      expect(pl.locator(".hints")).to_contain_text("Подсказку 3 может взять капитан через 29 мин")
+
       # подсказка: игрок не может, капитан берёт со штрафом
-      expect(pl.locator("text=может взять капитан")).to_be_visible()
+      expect(pl.locator("text=Подсказку 2 может взять капитан")).to_be_visible()
       cap.once("dialog", lambda d: d.accept())
       cap.click("text=Взять подсказку 2")
       expect(cap.locator(".hint", has_text="каменном столбе")).to_be_visible(timeout=5000)
