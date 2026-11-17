@@ -22,6 +22,30 @@
     if (r) texts[key] = ''
   }
 
+  // Штраф слива/подсказки словами: «+15 мин к времени» / «−3 балла» / «без штрафа».
+  const fineText = (p: { penalty_sec?: number; penalty_points?: number }) =>
+    p.penalty_sec ? `+${minutes(p.penalty_sec)} к времени` : p.penalty_points ? `−${points(p.penalty_points)}` : 'без штрафа'
+  const fineShort = (p: { penalty_sec?: number; penalty_points?: number }) =>
+    p.penalty_sec ? `+${minutes(p.penalty_sec)}` : p.penalty_points ? `−${points(p.penalty_points)}` : 'без штрафа'
+
+  async function slivLocation() {
+    if (!level.location) return
+    if (!confirm(`Слить локацию уровня «${level.title}»?\n\nПокажем, где искать: адрес или точку на карте. Штраф: ${fineText(level.location)}.`)) return
+    await live.sliv('location', level.id)
+  }
+
+  async function slivLevel() {
+    if (!level.skip) return
+    const pts = level.points && s.scoring_mode !== 'time' ? ` Баллы за уровень (${level.points}) не начислятся.` : ''
+    if (!confirm(`Слить уровень «${level.title}»?\n\nУровень засчитают без ответа, и откроется следующий.${pts} Штраф: ${fineText(level.skip)}.\n\nОтменить нельзя.`)) return
+    await live.sliv('skip', level.id)
+  }
+
+  const mapLinks = (lat: number, lng: number) => ({
+    y: `https://yandex.ru/maps/?pt=${lng},${lat}&z=17&l=map`,
+    g: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+  })
+
   async function takeHint(idx: number, h: { penalty_sec?: number; penalty_points?: number }) {
     const fine = h.penalty_sec ? `+${minutes(h.penalty_sec)} к времени` : h.penalty_points ? `−${points(h.penalty_points)}` : 'без штрафа'
     if (!confirm(`Взять подсказку? Штраф: ${fine}.`)) return
@@ -40,7 +64,9 @@
 <article class="card level" class:solved={!level.open}>
   <header class="row">
     <h2 class="grow">{level.title || 'Задание'}</h2>
-    {#if !level.open}
+    {#if !level.open && level.skipped}
+      <span class="badge warn">Слит</span>
+    {:else if !level.open}
       <span class="badge ok">Пройдено</span>
     {:else if level.points && live.state?.scoring_mode !== 'time'}
       <span class="badge">{points(level.points)}</span>
@@ -125,6 +151,49 @@
     </div>
   {/if}
 
+  {#if level.location?.revealed}
+    <div class="hint loc">
+      <strong>Локация.</strong>
+      {#if level.location.text}<span class="task">{level.location.text}</span>{/if}
+      {#if level.location.lat != null && level.location.lng != null}
+        {@const m = mapLinks(level.location.lat, level.location.lng)}
+        <div class="small maplinks">
+          <span class="mono">{level.location.lat.toFixed(5)}, {level.location.lng.toFixed(5)}</span>
+          <a href={m.y} target="_blank" rel="noopener">Яндекс Карты ↗</a>
+          <a href={m.g} target="_blank" rel="noopener">Google Maps ↗</a>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {#if active && ((level.location && !level.location.revealed) || level.skip)}
+    <div class="sliv">
+      {#if s.is_captain}
+        {#if level.location && !level.location.revealed}
+          <button class="ghost block" disabled={live.busy} onclick={slivLocation}>
+            Слить локацию <span class="fine">({fineShort(level.location)})</span>
+          </button>
+          <div class="muted small desc">Покажем, где искать: адрес или точку на карте.</div>
+        {/if}
+        {#if level.skip}
+          <button class="ghost block warnbtn" disabled={live.busy} onclick={slivLevel}>
+            Слить уровень <span class="fine">({fineShort(level.skip)})</span>
+          </button>
+          <div class="muted small desc">
+            Уровень засчитают без ответа{level.points && s.scoring_mode !== 'time' ? ', баллы за него не начислятся' : ''}.
+          </div>
+        {/if}
+      {:else}
+        <div class="muted small">
+          Капитан может
+          {#if level.location && !level.location.revealed}слить локацию ({fineShort(level.location)}){/if}{#if level.location && !level.location.revealed && level.skip}
+            или{/if}
+          {#if level.skip}слить уровень ({fineShort(level.skip)}){/if}.
+        </div>
+      {/if}
+    </div>
+  {/if}
+
   {#if level.bonuses?.length}
     <div class="bonuses">
       <h3>Бонусы</h3>
@@ -197,6 +266,29 @@
   .free {
     margin-top: 0.25rem;
     text-align: center;
+  }
+  .sliv {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--line);
+    display: grid;
+    gap: 0.25rem;
+  }
+  .sliv .desc {
+    margin: 0 0 0.4rem;
+    text-align: center;
+  }
+  .warnbtn {
+    color: var(--bad);
+  }
+  .loc {
+    margin-top: 0.75rem;
+  }
+  .maplinks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.3rem;
   }
   .hints {
     margin-top: 0.9rem;

@@ -77,6 +77,16 @@ with sync_playwright() as p:
     expect(lvl.locator("[data-path='levels[0].hints[1]'] .badge")).to_have_text("только по запросу")
     expect(lvl.locator("[data-path='levels[0].hints[1].after'] .msg")).to_have_count(0, timeout=5000)
 
+    # сливы под подсказками: локация без адреса у уровня без геоточки — ошибка
+    lvl.locator("[data-path='levels[0].location'] label.chk input").check()
+    expect(lvl.locator("[data-path='levels[0].location'] .msg")).to_contain_text("слив локации пустой", timeout=5000)
+    lvl.locator("[data-path='levels[0].location.text'] textarea").fill("Главный вход в парк")
+    expect(lvl.locator("[data-path='levels[0].location'] .msg")).to_have_count(0, timeout=5000)
+    expect(lvl.locator("[data-path='levels[0].location.penalty.time'] input")).to_have_value("15m")
+    lvl.locator("[data-path='levels[0].skip'] label.chk input").check()
+    expect(lvl.locator("[data-path='levels[0].skip.penalty.time'] input")).to_have_value("30m")
+    page.screenshot(path=f"{SHOTS}/e02a-sliv.png", full_page=True)
+
     # --- уровень 2: геоточка + бонус-фото ---
     ed.locator("button", has_text="＋ уровень").click()
     lvl.locator("[data-path='levels[1].title'] input").fill("Мост")
@@ -90,6 +100,10 @@ with sync_playwright() as p:
     expect(page.locator(".leaflet-container")).to_be_visible()
     page.screenshot(path=f"{SHOTS}/e02-map.png")
     page.locator(".modal button", has_text="Отмена").click()
+    # слив локации без адреса: точка возьмётся из геоответа, штраф можно убрать
+    lvl.locator("[data-path='levels[1].location'] label.chk input").check()
+    expect(lvl.locator("[data-path='levels[1].location.point']")).to_contain_text("покажем точку ответа уровня")
+    lvl.locator("[data-path='levels[1].location.penalty.time'] input").fill("")
 
     # --- уровни 3 и 4 ---
     for title in ["Парк", "Финиш"]:
@@ -152,7 +166,9 @@ with sync_playwright() as p:
     ed.locator(".nav", has_text="YAML").click()
     src = ed.locator(".yaml textarea").input_value()
     for want in ["id: test-konstruktora", "routes: rotate", "pin: first", "point: [44.6338, 39.1352]",
-                 "on_request: true", "after: 20m", "after: 0", "penalty: {time: 10m}"]:
+                 "on_request: true", "after: 20m", "after: 0", "penalty: {time: 10m}",
+                 "    location:\n      text: Главный вход в парк\n      penalty: {time: 15m}",
+                 "    skip:\n      penalty: {time: 30m}", "    location: {}"]:
         assert want in src, f"нет в YAML: {want}\n{src}"
     page.screenshot(path=f"{SHOTS}/e05-yaml.png")
 

@@ -156,11 +156,26 @@ try:
       toast(cap, "Верно")
       expect(cap.locator(".dot.on")).to_have_count(1, timeout=5000)
       cap.screenshot(path=f"{SHOTS}/07-sectors.png", full_page=True)
-      cap.fill(".codebar input", "1987")
-      cap.click(".codebar button")
+      # второй сектор не нашли — капитан сливает уровень (игрок видит только подсказку)
+      expect(pl.locator(".sliv")).to_contain_text("Капитан может слить уровень (−3 балла)")
+      expect(pl.locator(".sliv button")).to_have_count(0)
+      expect(cap.locator(".sliv button", has_text="Слить уровень")).to_contain_text("(−3 балла)")
+      cap.once("dialog", lambda d: d.dismiss())  # передумали — ничего не происходит
+      cap.click(".sliv button:has-text('Слить уровень')")
+      expect(cap.locator("h2", has_text="Две надписи")).to_be_visible()
+      cap.once("dialog", lambda d: (d.message.find("Штраф: −3 балла") >= 0 or errors.append("нет штрафа в подтверждении: " + d.message), d.accept()))
+      cap.click(".sliv button:has-text('Слить уровень')")
+      toast(cap, "Уровень засчитан")
 
       # выбор варианта
       expect(pl.locator("h2", has_text="Знаток")).to_be_visible(timeout=5000)
+      # слив локации: капитан, с подтверждением; место видят все
+      expect(cap.locator(".sliv button", has_text="Слить локацию")).to_contain_text("+10 мин")
+      cap.once("dialog", lambda d: d.accept())
+      cap.click(".sliv button:has-text('Слить локацию')")
+      expect(pl.locator(".loc")).to_contain_text("Смотровая площадка у реки", timeout=5000)
+      expect(pl.locator(".loc a", has_text="Яндекс Карты")).to_have_attribute("href", "https://yandex.ru/maps/?pt=39.1288,44.6301&z=17&l=map")
+      expect(cap.locator(".sliv button", has_text="Слить локацию")).to_have_count(0)
       pl.screenshot(path=f"{SHOTS}/08-choice.png", full_page=True)
       pl.click("button:has-text('Петушок')")
       toast(pl, "Верно")

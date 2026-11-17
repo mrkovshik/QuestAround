@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 	_ "time/tzdata" // часовые пояса без tzdata в образе (TZ=Europe/Moscow)

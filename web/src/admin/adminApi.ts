@@ -51,6 +51,8 @@ export interface LevelProgress {
   required: number
   hints_opened: number
   hints_total: number
+  skipped?: boolean
+  location?: boolean
 }
 
 export interface DashTeam {

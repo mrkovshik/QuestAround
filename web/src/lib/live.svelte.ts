@@ -317,6 +317,21 @@ export class Live {
     }
   }
 
+  /** Слив локации или уровня (капитан). */
+  async sliv(kind: 'location' | 'skip', levelId: string) {
+    this.busy = true
+    try {
+      await (kind === 'location' ? api.revealLocation : api.skipLevel)(this.token, levelId)
+      this.toast('ok', kind === 'location' ? 'Локация открыта' : 'Уровень засчитан')
+      this.scheduleRefresh()
+    } catch (e) {
+      if (isNetworkError(e)) this.toast('bad', 'Нет связи — попробуйте ещё раз')
+      else this.announceError(e as ApiError)
+    } finally {
+      this.busy = false
+    }
+  }
+
   async flushOutbox() {
     try {
       this.queued = await flush(this.token, (d: Delivery) => {

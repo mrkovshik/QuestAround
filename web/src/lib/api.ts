@@ -30,6 +30,18 @@ export interface Bonus {
   time_sec?: number
 }
 
+export interface Penalty {
+  penalty_sec?: number
+  penalty_points?: number
+}
+
+export interface LevelLocation extends Penalty {
+  revealed: boolean
+  text?: string
+  lat?: number
+  lng?: number
+}
+
 export interface Level {
   id: string
   title: string
@@ -44,6 +56,9 @@ export interface Level {
   answers: AnswerSlot[]
   hints: Hint[]
   bonuses?: Bonus[]
+  location?: LevelLocation
+  skip?: Penalty
+  skipped?: boolean
 }
 
 export interface Player {
@@ -252,6 +267,10 @@ export const api = {
   state: (token: string) => request<PlayerState>('GET', '/api/v1/state', { token }),
   answer: (token: string, body: AnswerBody) => request<AnswerResult>('POST', '/api/v1/answers', { token, body }),
   photo: (token: string, form: FormData) => request<AnswerResult>('POST', '/api/v1/photos', { token, form }),
+  revealLocation: (token: string, levelId: string) =>
+    request<void>('POST', `/api/v1/levels/${encodeURIComponent(levelId)}/location`, { token }),
+  skipLevel: (token: string, levelId: string) =>
+    request<void>('POST', `/api/v1/levels/${encodeURIComponent(levelId)}/skip`, { token }),
   hint: (token: string, levelId: string, idx: number) =>
     request<void>('POST', `/api/v1/levels/${encodeURIComponent(levelId)}/hints/${idx}`, { token }),
   leaderboard: (token: string) =>

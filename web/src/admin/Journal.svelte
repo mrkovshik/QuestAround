@@ -31,6 +31,8 @@
     hint_opened: 'Подсказка',
     bonus_completed: 'Бонус засчитан',
     level_completed: 'Уровень пройден',
+    location_revealed: 'Слив локации',
+    level_skipped: 'Слив уровня',
     team_finished: 'Финиш команды',
     admin_override: 'Действие ведущего',
     leaderboard_visibility_set: 'Видимость таблицы',
@@ -92,7 +94,10 @@
         return `#${p.ref} ${p.approved ? 'принято' : 'отклонено'}${p.comment ? ': ' + p.comment : ''}`
       case 'level_opened':
       case 'level_completed':
-        return p.level_id + (p.points ? ` (+${p.points})` : '')
+        return p.level_id + (p.points ? ` (+${p.points})` : '') + (p.skipped ? ' — слит' : '')
+      case 'location_revealed':
+      case 'level_skipped':
+        return p.level_id + (p.penalty_time ? `, +${p.penalty_time / 6e10} мин` : '') + (p.penalty_points ? `, −${p.penalty_points} б.` : '')
       case 'bonus_completed':
         return `${p.bonus_id} (${[p.points ? `+${p.points}` : '', p.time ? `−${p.time / 6e10} мин` : ''].filter(Boolean).join(', ')})`
       case 'team_finished':

@@ -266,15 +266,7 @@ func (v *validator) validateLevels() {
 			v.validateMedia(hp, h.Media)
 			if h.OnRequest {
 				// after > 0 — откроется и сама (без штрафа); 0 или не задан — только по запросу.
-				if pen := h.Penalty; pen != nil && (pen.Time == 0) == (pen.Points == 0) {
-					v.add(append(hp, "penalty"), "укажите ровно одно: time или points")
-				}
-				if pen := h.Penalty; pen != nil && pen.Points < 0 {
-					v.add(append(hp, "penalty", "points"), "штраф не может быть отрицательным")
-				}
-				if pen := h.Penalty; pen != nil && pen.Points != 0 && v.timeMode() {
-					v.add(append(hp, "penalty", "points"), "в зачёте по времени штраф — только временем: penalty: {time: 10m}")
-				}
+				v.validatePenalty(hp, h.Penalty)
 				continue
 			}
 			if h.Penalty != nil {
@@ -287,6 +279,21 @@ func (v *validator) validateLevels() {
 				v.add(hp, "у подсказки нет after, а в defaults.hint_after только %d значений", len(v.s.Defaults.HintAfter))
 			}
 			auto++
+		}
+
+		// Сливы.
+		if loc := l.Location; loc != nil {
+			locp := lp("location")
+			if len(loc.Point) != 0 {
+				v.validatePoint(append(slices.Clip(locp), "point"), loc.Point)
+			}
+			if strings.TrimSpace(loc.Text) == "" && l.LocationPoint() == nil {
+				v.add(locp, "слив локации пустой: укажите text (адрес) или point, либо добавьте уровню geo-ответ")
+			}
+			v.validatePenalty(locp, loc.Penalty)
+		}
+		if l.Skip != nil {
+			v.validatePenalty(lp("skip"), l.Skip.Penalty)
 		}
 
 		// Бонусы.
@@ -371,16 +378,7 @@ func (v *validator) validateAnswer(a Answer, path []any) {
 			v.add(at("correct"), "правильный ответ %q не найден среди options", a.Correct)
 		}
 	case AnswerGeo:
-		if len(a.Point) != 2 {
-			v.add(at("point"), "ожидалось [широта, долгота]")
-		} else {
-			if a.Point[0] < -90 || a.Point[0] > 90 {
-				v.add(at("point"), "широта %v вне диапазона [-90, 90]", a.Point[0])
-			}
-			if a.Point[1] < -180 || a.Point[1] > 180 {
-				v.add(at("point"), "долгота %v вне диапазона [-180, 180]", a.Point[1])
-			}
-		}
+		v.validatePoint(at("point"), a.Point)
 		if a.RadiusM <= 0 {
 			v.add(at("radius_m"), "радиус должен быть > 0")
 		}
@@ -555,4 +553,34 @@ func findCycle(levels []Level) []string {
 		}
 	}
 	return nil
+}
+
+func (v *validator) validatePoint(path []any, p []float64) {
+	if len(p) != 2 {
+		v.add(path, "ожидалось [широта, долгота]")
+		return
+	}
+	if p[0] < -90 || p[0] > 90 {
+		v.add(path, "широта %v вне диапазона [-90, 90]", p[0])
+	}
+	if p[1] < -180 || p[1] > 180 {
+		v.add(path, "долгота %v вне диапазона [-180, 180]", p[1])
+	}
+}
+
+// validatePenalty — штраф подсказки по запросу или слива: время или баллы.
+func (v *validator) validatePenalty(path []any, pen *Penalty) {
+	if pen == nil {
+		return
+	}
+	pp := slices.Clip(path)
+	if (pen.Time == 0) == (pen.Points == 0) {
+		v.add(append(pp, "penalty"), "укажите ровно одно: time или points")
+	}
+	if pen.Points < 0 || pen.Time < 0 {
+		v.add(append(pp, "penalty"), "штраф не может быть отрицательным")
+	}
+	if pen.Points != 0 && v.timeMode() {
+		v.add(append(pp, "penalty", "points"), "в зачёте по времени штраф — только временем: penalty: {time: 10m}")
+	}
 }

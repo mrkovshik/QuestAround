@@ -301,6 +301,23 @@ func (s *Server) requestHint(w http.ResponseWriter, r *http.Request, p *player) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// revealLocation и skipLevel — сливы; только капитан (проверяет ядро).
+func (s *Server) revealLocation(w http.ResponseWriter, r *http.Request, p *player) {
+	s.playerDo(w, r, p, core.RevealLocation{TeamID: p.TeamID, PlayerID: p.PlayerID, LevelID: r.PathValue("level")})
+}
+
+func (s *Server) skipLevel(w http.ResponseWriter, r *http.Request, p *player) {
+	s.playerDo(w, r, p, core.SkipLevel{TeamID: p.TeamID, PlayerID: p.PlayerID, LevelID: r.PathValue("level")})
+}
+
+func (s *Server) playerDo(w http.ResponseWriter, r *http.Request, p *player, cmd core.Command) {
+	if _, err := p.Runner.Do(r.Context(), cmd); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) leaderboard(w http.ResponseWriter, r *http.Request, p *player) {
 	var (
 		st      []core.Standing

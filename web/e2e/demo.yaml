@@ -28,10 +28,12 @@ levels:
     answers:
       - {type: code, values: ["лев"]}
       - {type: regex, pattern: "^(19|20)\\d{2}$"}
+    skip: {penalty: {points: 3}}
   - id: quiz
     title: Знаток
     task: Как называется скала у реки Псекупс?
     points: 5
+    location: {text: "Смотровая площадка у реки", point: [44.6301, 39.1288], penalty: {time: 10m}}
     answers:
       - {type: choice, options: ["Петушок", "Монах", "Орёл"], correct: "Петушок"}
   - id: photo

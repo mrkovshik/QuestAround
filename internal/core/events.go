@@ -157,6 +157,7 @@ type BonusCompleted struct {
 type LevelCompleted struct {
 	LevelID string `json:"level_id"`
 	Points  int    `json:"points"`
+	Skipped bool   `json:"skipped,omitempty"` // слит капитаном
 }
 
 type TeamFinished struct {

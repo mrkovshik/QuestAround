@@ -120,7 +120,7 @@ type Results struct {
 // ScoreEntry — строка расшифровки баллов команды.
 type ScoreEntry struct {
 	At      time.Time
-	Kind    string // level | bonus | hint | adjust
+	Kind    string // level | bonus | hint | adjust | location | skip
 	LevelID string
 	BonusID string
 	HintIdx int
@@ -192,6 +192,9 @@ type LevelState struct {
 	Solved      []bool        // по индексу answers
 	Pending     map[int]int64 // answer idx → Seq заявки на модерации
 	Hints       []bool        // открытые подсказки
+
+	LocationRevealed bool // слита локация
+	Skipped          bool // уровень слит
 }
 
 func (l *LevelState) IsOpen() bool { return l != nil && l.CompletedAt.IsZero() }
@@ -273,7 +276,7 @@ func Replay(runID string, sc *scenario.Scenario, seed uint64, events []Event) *G
 // события — уже свершившиеся факты, проверки делаются при их создании.
 func (g *Game) Apply(e Event) {
 	g.seq = e.Seq
-	if g.applyComms(e) {
+	if g.applyComms(e) || g.applySliv(e) {
 		return
 	}
 	t := g.Teams[e.TeamID]
@@ -453,7 +456,9 @@ func (g *Game) Apply(e Event) {
 		t.Levels[p.LevelID].CompletedAt = e.At
 		t.Points += p.Points
 		t.LevelsDone++
-		t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "level", LevelID: p.LevelID, Points: p.Points})
+		if !p.Skipped { // слив уже записан строкой «skip»
+			t.Ledger = append(t.Ledger, ScoreEntry{At: e.At, Kind: "level", LevelID: p.LevelID, Points: p.Points})
+		}
 
 	case TeamFinished:
 		t.Status = TeamStatusFinished

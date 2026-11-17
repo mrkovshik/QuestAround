@@ -162,8 +162,37 @@ type Level struct {
 	Require Require    `yaml:"require"` // сколько ответов нужно для зачёта
 	Answers []Answer   `yaml:"answers"`
 	Hints   []Hint     `yaml:"hints"`
-	Bonuses []Bonus    `yaml:"bonuses"`
-	Unlock  *Unlock    `yaml:"unlock"` // только для flow: graph
+	// Location — «слив локации»: капитан может получить место (адрес и/или точку) со штрафом.
+	Location *Location `yaml:"location"`
+	// Skip — «слив уровня»: капитан может засчитать уровень без ответа со штрафом.
+	Skip    *Skip   `yaml:"skip"`
+	Bonuses []Bonus `yaml:"bonuses"`
+	Unlock  *Unlock `yaml:"unlock"` // только для flow: graph
+}
+
+// Location — что получит команда при сливе локации.
+type Location struct {
+	Text    string    `yaml:"text"`  // адрес / описание места
+	Point   []float64 `yaml:"point"` // [lat, lng]; не задана — берётся точка geo-ответа уровня
+	Penalty *Penalty  `yaml:"penalty"`
+}
+
+// Skip — условия слива уровня. Баллы за уровень при сливе не начисляются.
+type Skip struct {
+	Penalty *Penalty `yaml:"penalty"`
+}
+
+// LocationPoint — точка для слива локации: явная или из первого geo-ответа.
+func (l *Level) LocationPoint() []float64 {
+	if l.Location != nil && len(l.Location.Point) == 2 {
+		return l.Location.Point
+	}
+	for _, a := range l.Answers {
+		if a.Type == AnswerGeo && len(a.Point) == 2 {
+			return a.Point
+		}
+	}
+	return nil
 }
 
 type AnswerType string

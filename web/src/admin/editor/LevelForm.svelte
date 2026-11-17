@@ -4,6 +4,7 @@
   import Dur from './Dur.svelte'
   import Field from './Field.svelte'
   import MediaPicker from './MediaPicker.svelte'
+  import SlivEdit from './SlivEdit.svelte'
   import { ID_RE, cloneLevel, humanDuration, newAnswer, removeLevelRefs, renameLevel, uniqueId, type Hint, type Level } from './model'
   import { useEditor } from './state.svelte'
 
@@ -279,6 +280,8 @@
     {/each}
     <button class="secondary small" onclick={addHint}>＋ подсказка</button>
   </section>
+
+  <SlivEdit {level} path={P} />
 
   <section class="card">
     <h3>Бонусы</h3>

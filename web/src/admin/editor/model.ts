@@ -63,6 +63,8 @@ export interface Level {
   require?: 'all' | 'any' | number | string
   answers: Answer[]
   hints?: Hint[]
+  location?: { text?: string; point?: number[]; penalty?: Penalty }
+  skip?: { penalty?: Penalty }
   bonuses?: Bonus[]
   unlock?: Unlock
   [k: string]: unknown
@@ -192,7 +194,7 @@ export function toYaml(d: Draft): string {
 
 // Порядок ключей верхнего уровня — как в документации.
 const TOP = ['version', 'id', 'title', 'description', 'participants', 'timing', 'start', 'flow', 'scoring', 'leaderboard', 'defaults', 'levels']
-const LEVEL = ['id', 'pin', 'chain', 'title', 'task', 'media', 'points', 'require', 'unlock', 'answers', 'hints', 'bonuses']
+const LEVEL = ['id', 'pin', 'chain', 'title', 'task', 'media', 'points', 'require', 'unlock', 'answers', 'hints', 'location', 'skip', 'bonuses']
 
 function order(d: Draft): Record<string, unknown> {
   const out: Record<string, unknown> = {}
@@ -249,6 +251,8 @@ function clean(v: unknown, key = ''): unknown {
     }
     // у уровня и ответа обязательные ключи оставляем даже пустыми
     if ('answers' in (v as object) && !('answers' in o)) o.answers = []
+    // слив без штрафа — это тоже слив: skip: {} / location: {} не выбрасываем
+    if (key === 'skip' || key === 'location') return o
     return Object.keys(o).length ? o : undefined
   }
   return v

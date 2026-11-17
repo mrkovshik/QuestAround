@@ -160,6 +160,7 @@
               <td>
                 {l.title}
                 {#if l.required > 1}<div class="muted small">секторы {l.solved}/{l.required}</div>{/if}
+                {#if l.location}<div class="small warm">слита локация</div>{/if}
               </td>
               <td>{hhmm(l.opened_at)}</td>
               <td class="num">{l.completed_at ? between(l.opened_at, l.completed_at) : clock(since(l.opened_at, live.now))}</td>
@@ -167,6 +168,8 @@
               <td class="num">
                 {#if !l.completed_at && playing}
                   <button class="small secondary" onclick={() => completeLevel(l.level_id, l.title)}>Засчитать</button>
+                {:else if l.skipped}
+                  <span class="badge warn" title="Капитан слил уровень">слит</span>
                 {:else if l.completed_at}
                   <span class="badge ok">✓</span>
                 {/if}

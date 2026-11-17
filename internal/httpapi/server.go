@@ -66,6 +66,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/v1/answers", p(s.submitAnswer))
 	mux.Handle("POST /api/v1/photos", p(s.submitPhoto))
 	mux.Handle("POST /api/v1/levels/{level}/hints/{idx}", p(s.requestHint))
+	mux.Handle("POST /api/v1/levels/{level}/location", p(s.revealLocation))
+	mux.Handle("POST /api/v1/levels/{level}/skip", p(s.skipLevel))
 	mux.Handle("GET /api/v1/leaderboard", p(s.leaderboard))
 	mux.Handle("GET /api/v1/stream", p(s.playerStream))
 	mux.Handle("POST /api/v1/chat", p(s.postChat))

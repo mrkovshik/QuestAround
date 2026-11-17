@@ -96,6 +96,30 @@ type levelDTO struct {
 	Answers     []answerSlotDTO `json:"answers"`
 	Hints       []hintDTO       `json:"hints"`
 	Bonuses     []bonusDTO      `json:"bonuses,omitempty"`
+	Location    *locationDTO    `json:"location,omitempty"` // слив локации, если есть в сценарии
+	Skip        *penaltyDTO     `json:"skip,omitempty"`     // слив уровня, если есть в сценарии
+	Skipped     bool            `json:"skipped,omitempty"`  // уровень слит
+}
+
+type penaltyDTO struct {
+	PenaltySec    int64 `json:"penalty_sec,omitempty"`
+	PenaltyPoints int   `json:"penalty_points,omitempty"`
+}
+
+func penaltyView(p *scenario.Penalty) penaltyDTO {
+	if p == nil {
+		return penaltyDTO{}
+	}
+	return penaltyDTO{PenaltySec: int64(p.Time.D() / time.Second), PenaltyPoints: p.Points}
+}
+
+// locationDTO — слив локации; место отдаётся только после слива.
+type locationDTO struct {
+	penaltyDTO
+	Revealed bool     `json:"revealed"`
+	Text     string   `json:"text,omitempty"`
+	Lat      *float64 `json:"lat,omitempty"`
+	Lng      *float64 `json:"lng,omitempty"`
 }
 
 func clientAnswerType(t scenario.AnswerType) string {
@@ -118,7 +142,21 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 		ID: sl.ID, Title: sl.Title, Task: sl.Task, Media: sl.Media, Points: sl.Points,
 		Open: ls.IsOpen(), OpenedAt: ls.OpenedAt, CompletedAt: timePtr(ls.CompletedAt),
 		Required: sl.Require.Needed(len(sl.Answers)), Solved: ls.SolvedCount(),
-		Answers: []answerSlotDTO{}, Hints: []hintDTO{},
+		Answers: []answerSlotDTO{}, Hints: []hintDTO{}, Skipped: ls.Skipped,
+	}
+	if sl.Location != nil {
+		loc := &locationDTO{penaltyDTO: penaltyView(sl.Location.Penalty), Revealed: ls.LocationRevealed}
+		if ls.LocationRevealed {
+			loc.Text = sl.Location.Text
+			if pt := sl.LocationPoint(); pt != nil {
+				loc.Lat, loc.Lng = &pt[0], &pt[1]
+			}
+		}
+		d.Location = loc
+	}
+	if sl.Skip != nil {
+		sk := penaltyView(sl.Skip.Penalty)
+		d.Skip = &sk
 	}
 	for i, a := range sl.Answers {
 		slot := answerSlotDTO{Index: i, Type: clientAnswerType(a.Type), Solved: ls.Solved[i], Pending: ls.Pending[i] != 0}
@@ -238,6 +276,10 @@ func ledgerView(g *core.Game, team *core.Team) []scoreItemDTO {
 			it.Title = "Подсказка " + strconv.Itoa(e.HintIdx+1) + " — «" + title(e.LevelID) + "»"
 		case "adjust":
 			it.Title = "Решение ведущего"
+		case "location":
+			it.Title = "Слив локации — «" + title(e.LevelID) + "»"
+		case "skip":
+			it.Title = "Слив уровня — «" + title(e.LevelID) + "»"
 		}
 		out = append(out, it)
 	}
@@ -349,6 +391,8 @@ type currentLevelDTO struct {
 	Required    int        `json:"required"`
 	HintsOpened int        `json:"hints_opened"`
 	HintsTotal  int        `json:"hints_total"`
+	Skipped     bool       `json:"skipped,omitempty"`  // уровень слит
+	LocationOut bool       `json:"location,omitempty"` // слита локация
 }
 
 type dashTeamDTO struct {
@@ -459,6 +503,7 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 			}
 			lv := currentLevelDTO{
 				LevelID: sl.ID, Title: cmp.Or(sl.Title, sl.ID), OpenedAt: ls.OpenedAt, CompletedAt: timePtr(ls.CompletedAt),
+				Skipped: ls.Skipped, LocationOut: ls.LocationRevealed,
 				Solved: ls.SolvedCount(), Required: sl.Require.Needed(len(sl.Answers)),
 				HintsOpened: opened, HintsTotal: len(sl.Hints),
 			}
