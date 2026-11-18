@@ -72,7 +72,10 @@ func (f *fakeAPI) Send(_ context.Context, m Outgoing) error {
 	return nil
 }
 
-func (f *fakeAPI) UploadPhoto(_ context.Context, _ string, r io.Reader) (string, error) {
+func (f *fakeAPI) UploadPhoto(_ context.Context, peer int64, _ string, r io.Reader) (string, error) {
+	if peer <= 0 {
+		return "", fmt.Errorf("peer_id не задан")
+	}
 	_, _ = io.ReadAll(r)
 	f.mu.Lock()
 	defer f.mu.Unlock()

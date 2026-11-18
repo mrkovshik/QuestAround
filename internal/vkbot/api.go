@@ -25,7 +25,9 @@ type API interface {
 	Poll(ctx context.Context, lp LongPoll) (PollResult, error)
 	Send(ctx context.Context, m Outgoing) error
 	// UploadPhoto загружает картинку для сообщений и возвращает вложение "photo…".
-	UploadPhoto(ctx context.Context, filename string, r io.Reader) (string, error)
+	// peerID — получатель: с токеном сообщества без него VK не даёт адрес загрузки.
+	// Загруженное вложение можно отправлять и другим собеседникам.
+	UploadPhoto(ctx context.Context, peerID int64, filename string, r io.Reader) (string, error)
 	// UserName — имя и фамилия пользователя.
 	UserName(ctx context.Context, userID int64) (first, last string, err error)
 }
@@ -228,12 +230,15 @@ func (c *Client) Send(ctx context.Context, m Outgoing) error {
 	return c.call(ctx, "messages.send", p, nil)
 }
 
-func (c *Client) UploadPhoto(ctx context.Context, filename string, r io.Reader) (string, error) {
+func (c *Client) UploadPhoto(ctx context.Context, peerID int64, filename string, r io.Reader) (string, error) {
 	var srv struct {
 		UploadURL string `json:"upload_url"`
 	}
-	if err := c.call(ctx, "photos.getMessagesUploadServer", url.Values{"peer_id": {"0"}}, &srv); err != nil {
-		return "", err
+	if err := c.call(ctx, "photos.getMessagesUploadServer", url.Values{"peer_id": {strconv.FormatInt(peerID, 10)}}, &srv); err != nil {
+		return "", fmt.Errorf("photos.getMessagesUploadServer: %w", err)
+	}
+	if srv.UploadURL == "" {
+		return "", errors.New("photos.getMessagesUploadServer: пустой upload_url")
 	}
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
@@ -262,11 +267,15 @@ func (c *Client) UploadPhoto(ctx context.Context, filename string, r io.Reader) 
 		Photo  string `json:"photo"`
 		Hash   string `json:"hash"`
 	}
-	if err := json.NewDecoder(res.Body).Decode(&up); err != nil {
+	raw, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if err != nil {
 		return "", fmt.Errorf("загрузка фото: %w", err)
 	}
+	if err := json.Unmarshal(raw, &up); err != nil {
+		return "", fmt.Errorf("загрузка фото: HTTP %d, ответ %.200q", res.StatusCode, raw)
+	}
 	if up.Photo == "" || up.Photo == "[]" {
-		return "", errors.New("загрузка фото: VK не принял файл")
+		return "", fmt.Errorf("загрузка фото: VK не принял файл, ответ %.200q", raw)
 	}
 	var saved []struct {
 		ID        int64  `json:"id"`
@@ -277,7 +286,7 @@ func (c *Client) UploadPhoto(ctx context.Context, filename string, r io.Reader) 
 		"server": {strconv.Itoa(up.Server)}, "photo": {up.Photo}, "hash": {up.Hash},
 	}, &saved)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("photos.saveMessagesPhoto: %w", err)
 	}
 	if len(saved) == 0 {
 		return "", errors.New("загрузка фото: пустой ответ")

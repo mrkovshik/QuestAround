@@ -60,6 +60,9 @@ func TestClient(t *testing.T) {
 			}
 			io.WriteString(w, `{"response":123}`)
 		case "photos.getMessagesUploadServer":
+			if r.Form.Get("peer_id") != "5" {
+				t.Errorf("getMessagesUploadServer: peer_id = %q", r.Form.Get("peer_id"))
+			}
 			io.WriteString(w, `{"response":{"upload_url":"`+srv.URL+`/upload"}}`)
 		case "photos.saveMessagesPhoto":
 			if r.Form.Get("server") != "77" || r.Form.Get("hash") != "hh" {
@@ -108,7 +111,7 @@ func TestClient(t *testing.T) {
 		t.Fatalf("клавиатура: %s %v", sent["keyboard"], err)
 	}
 
-	att, err := c.UploadPhoto(ctx, "a.png", strings.NewReader("PNGDATA"))
+	att, err := c.UploadPhoto(ctx, 5, "a.png", strings.NewReader("PNGDATA"))
 	if err != nil || att != "photo-243_5_ak" {
 		t.Fatalf("UploadPhoto: %q %v", att, err)
 	}

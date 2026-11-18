@@ -181,6 +181,7 @@ func (b *Bot) send(ctx context.Context, o out) {
 	var atts []string
 	text := o.text
 	var links []string
+	failed := 0
 	for _, a := range o.assets {
 		if scenario.IsMediaURL(a) {
 			links = append(links, a)
@@ -188,16 +189,25 @@ func (b *Bot) send(ctx context.Context, o out) {
 		}
 		key, ok := b.cfg.Media.AssetKey(a)
 		if !ok {
+			b.log.Warn("картинки нет в библиотеке", "name", a)
+			failed++
 			continue
 		}
-		if att := b.photo(ctx, key); att != "" {
+		if att := b.photo(ctx, o.peer, key); att != "" {
 			atts = append(atts, att)
+		} else {
+			failed++
 		}
 	}
 	for _, k := range o.keys {
-		if att := b.photo(ctx, k); att != "" {
+		if att := b.photo(ctx, o.peer, k); att != "" {
 			atts = append(atts, att)
+		} else {
+			failed++
 		}
+	}
+	if failed > 0 {
+		text += "\n\n🖼 Картинка не загрузилась в VK — если без неё не решить, напишите ведущему."
 	}
 	if len(links) > 0 {
 		text += "\n\n🖼 " + strings.Join(links, "\n🖼 ")
@@ -225,7 +235,7 @@ func (b *Bot) reply(ctx context.Context, peer int64, text string) {
 }
 
 // photo загружает картинку в VK (один раз на ключ) и возвращает вложение.
-func (b *Bot) photo(ctx context.Context, key string) string {
+func (b *Bot) photo(ctx context.Context, peer int64, key string) string {
 	b.mu.Lock()
 	att, ok := b.photos[key]
 	b.mu.Unlock()
@@ -238,7 +248,7 @@ func (b *Bot) photo(ctx context.Context, key string) string {
 		return ""
 	}
 	defer f.Close()
-	att, err = b.cfg.API.UploadPhoto(ctx, path.Base(key), f)
+	att, err = b.cfg.API.UploadPhoto(ctx, peer, path.Base(key), f)
 	if err != nil {
 		b.log.Error("загрузка картинки в VK", "key", key, "err", err)
 		return ""
