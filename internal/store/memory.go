@@ -18,6 +18,8 @@ type Memory struct {
 	events    map[string][][]byte
 	scenarios map[string]ScenarioVersion
 	runs      map[string]Run
+	vk        map[int64]VKBinding
+	vkCursors map[string]int64
 }
 
 func NewMemory() *Memory {
@@ -25,6 +27,8 @@ func NewMemory() *Memory {
 		events:    map[string][][]byte{},
 		scenarios: map[string]ScenarioVersion{},
 		runs:      map[string]Run{},
+		vk:        map[int64]VKBinding{},
+		vkCursors: map[string]int64{},
 	}
 }
 
@@ -184,6 +188,7 @@ func (m *Memory) PurgeRun(_ context.Context, runID string) error {
 	}
 	delete(m.runs, runID)
 	delete(m.events, runID)
+	m.purgeVK(runID)
 	return nil
 }
 

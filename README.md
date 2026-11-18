@@ -35,7 +35,8 @@ internal/
   runner/                 актор игры: команды → журнал → подписчики, таймеры по NextDeadline
   httpapi/                HTTP API игрока и ведущего, SSE, загрузка фото
   webui/                  раздача собранного фронтенда (embed), SPA-маршруты
-  telegram/               (todo) бот — второй транспорт
+  vkbot/                  бот в сообществе VK — запасной канал при «белых списках»
+  telegram/               (todo) бот — транспорт для Сербии
 web/                      PWA игрока: Svelte 5 + Vite + TypeScript
   src/admin/              админка ведущего (отдельный чанк, игрокам не грузится)
   e2e/player_flow.py      прогон игры игрока в headless Chrome (playwright)

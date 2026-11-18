@@ -29,6 +29,9 @@ services:
     environment:
       QUESTAROUND_DATABASE_URL: postgres://questaround:${POSTGRES_PASSWORD}@postgres:5432/questaround?sslmode=disable
       QUESTAROUND_ADMIN_TOKEN: ${ADMIN_TOKEN:?задайте ADMIN_TOKEN в .env}
+      # VK-бот (запасной канал при отключениях интернета); пусто — выключен.
+      QUESTAROUND_VK_TOKEN: ${QUESTAROUND_VK_TOKEN:-}
+      QUESTAROUND_VK_GROUP_ID: ${QUESTAROUND_VK_GROUP_ID:-}
       # Часовой пояс — для времени в именах файлов архива фото.
       TZ: ${TZ:-Europe/Moscow}
     volumes:

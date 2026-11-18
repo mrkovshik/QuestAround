@@ -17,6 +17,7 @@ import (
 	"questaround/internal/httpapi"
 	"questaround/internal/runner"
 	"questaround/internal/store"
+	"questaround/internal/vkbot"
 	"questaround/internal/webui"
 )
 
@@ -42,6 +43,8 @@ func cmdServe(args []string) error {
 	adminToken := fs.String("admin-token", env("QUESTAROUND_ADMIN_TOKEN", ""), "токен ведущего (обязателен)")
 	trashDays := fs.Int("trash-days", envInt("QUESTAROUND_TRASH_DAYS", 30), "сколько дней удалённая игра лежит в корзине")
 	debug := fs.Bool("debug", os.Getenv("QUESTAROUND_DEBUG") != "", "подробные логи")
+	vkToken := fs.String("vk-token", env("QUESTAROUND_VK_TOKEN", ""), "токен сообщества VK; пусто — VK-бот выключен")
+	vkGroup := fs.Int64("vk-group", int64(envInt("QUESTAROUND_VK_GROUP_ID", 0)), "ID сообщества VK")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -76,10 +79,12 @@ func cmdServe(args []string) error {
 
 	runnersCtx, stopRunners := context.WithCancel(context.Background())
 	defer stopRunners()
+	runners := runner.NewManager(runnersCtx, st, runner.RealClock{}, log)
+	media := &httpapi.DiskMedia{Dir: *mediaDir}
 	api := httpapi.New(httpapi.Config{
 		Store:      st,
-		Runners:    runner.NewManager(runnersCtx, st, runner.RealClock{}, log),
-		Media:      &httpapi.DiskMedia{Dir: *mediaDir},
+		Runners:    runners,
+		Media:      media,
 		AdminToken: *adminToken,
 		Logger:     log,
 		Static:     webui.Handler(),
@@ -87,6 +92,27 @@ func cmdServe(args []string) error {
 		TrashRetention: time.Duration(*trashDays) * 24 * time.Hour,
 	})
 	go api.RunJanitor(runnersCtx)
+
+	if *vkToken != "" {
+		if *vkGroup == 0 {
+			return errors.New("задайте QUESTAROUND_VK_GROUP_ID вместе с QUESTAROUND_VK_TOKEN")
+		}
+		bot := vkbot.New(vkbot.Config{
+			API:     &vkbot.Client{Token: *vkToken, GroupID: *vkGroup},
+			Store:   st,
+			VK:      st.(store.VKStore),
+			Runners: runners,
+			Media:   media,
+			Logger:  log,
+		})
+		go func() {
+			if err := bot.Run(runnersCtx); err != nil {
+				log.Error("VK-бот остановлен", "err", err)
+			}
+		}()
+	} else {
+		log.Info("VK-бот выключен: QUESTAROUND_VK_TOKEN не задан")
+	}
 
 	srv := &http.Server{
 		Addr:              *addr,
