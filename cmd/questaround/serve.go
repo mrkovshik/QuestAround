@@ -80,6 +80,10 @@ func cmdServe(args []string) error {
 	runnersCtx, stopRunners := context.WithCancel(context.Background())
 	defer stopRunners()
 	runners := runner.NewManager(runnersCtx, st, runner.RealClock{}, log)
+	vkURL := ""
+	if *vkToken != "" && *vkGroup != 0 {
+		vkURL = "https://vk.com/write-" + strconv.FormatInt(*vkGroup, 10)
+	}
 	media := &httpapi.DiskMedia{Dir: *mediaDir}
 	api := httpapi.New(httpapi.Config{
 		Store:      st,
@@ -90,6 +94,7 @@ func cmdServe(args []string) error {
 		Static:     webui.Handler(),
 
 		TrashRetention: time.Duration(*trashDays) * 24 * time.Hour,
+		VKURL:          vkURL,
 	})
 	go api.RunJanitor(runnersCtx)
 

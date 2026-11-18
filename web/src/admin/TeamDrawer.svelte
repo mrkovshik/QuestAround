@@ -138,11 +138,19 @@
     <h3>Состав</h3>
     <ul class="plain">
       {#each team.players as p (p.id)}
-        <li>{p.name} {#if p.captain}<span class="badge">капитан</span>{/if}</li>
+        <li>
+          {p.name} {#if p.captain}<span class="badge">капитан</span>{/if}
+          {#if team.transfer_codes?.[p.id]}
+            <span class="small muted" title="Код переноса в VK-бот: продиктуйте игроку, если у него не открывается сайт">VK: <span class="mono">{team.transfer_codes[p.id]}</span></span>
+          {/if}
+        </li>
       {:else}
         <li class="muted">Пока никого — отправьте ссылку-приглашение.</li>
       {/each}
     </ul>
+    {#if team.transfer_codes && Object.keys(team.transfer_codes).length}
+      <p class="small muted">Если у игрока не открывается сайт — продиктуйте ему код «VK: …»: он отправит его сообществу VK и продолжит игру в боте.</p>
+    {/if}
     {#if team.contact}<p class="small">Контакт капитана: <strong>{team.contact}</strong></p>{/if}
     {#if invite && team.status !== 'finished'}
       <p class="small">Приглашение: <span class="mono">{team.invite_code}</span> · <span class="mono link">{invite}</span></p>

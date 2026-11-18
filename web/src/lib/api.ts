@@ -171,6 +171,8 @@ export interface PlayerState {
   host_contact?: string
   photos: Photo[]
   leaderboard: { visible: boolean; frozen: boolean; final: boolean }
+  /** Диалог с сообществом VK-бота — запасной канал, если сайт недоступен. */
+  vk_url?: string
 }
 
 export interface GameInfo {
@@ -240,7 +242,11 @@ export function isNetworkError(e: unknown): boolean {
   return !(e instanceof ApiError)
 }
 
-async function request<T>(method: string, path: string, opts: { token?: string; body?: unknown; form?: FormData } = {}): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  opts: { token?: string; body?: unknown; form?: FormData; timeoutMs?: number } = {},
+): Promise<T> {
   const headers: Record<string, string> = {}
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`
   let body: BodyInit | undefined
@@ -250,9 +256,18 @@ async function request<T>(method: string, path: string, opts: { token?: string; 
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(opts.body)
   }
-  const res = await fetch(path, { method, headers, body })
-  if (res.status === 204) return undefined as T
-  const data = await res.json().catch(() => ({}))
+  // Таймаут: при «белых списках» запрос может не падать, а висеть минутами.
+  const ctl = opts.timeoutMs ? new AbortController() : null
+  const timer = ctl ? setTimeout(() => ctl.abort(), opts.timeoutMs) : undefined
+  let res: Response
+  let data: any
+  try {
+    res = await fetch(path, { method, headers, body, signal: ctl?.signal })
+    if (res.status === 204) return undefined as T
+    data = await res.json().catch(() => ({}))
+  } finally {
+    clearTimeout(timer)
+  }
   if (!res.ok) {
     throw new ApiError(res.status, data.error ?? 'http_' + res.status, data.message ?? `Ошибка ${res.status}`)
   }
@@ -266,7 +281,7 @@ export const api = {
   join: (code: string, invite_code: string, name: string) =>
     request<Credentials>('POST', `/api/v1/games/${encodeURIComponent(code)}/join`, { body: { invite_code, name } }),
 
-  state: (token: string) => request<PlayerState>('GET', '/api/v1/state', { token }),
+  state: (token: string) => request<PlayerState>('GET', '/api/v1/state', { token, timeoutMs: 15_000 }),
   answer: (token: string, body: AnswerBody) => request<AnswerResult>('POST', '/api/v1/answers', { token, body }),
   photo: (token: string, form: FormData) => request<AnswerResult>('POST', '/api/v1/photos', { token, form }),
   revealLocation: (token: string, levelId: string) =>

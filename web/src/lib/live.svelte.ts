@@ -4,6 +4,7 @@
 import { api, ApiError, isNetworkError, type AnswerBody, type AnswerResult, type PlayerState, type Result } from './api'
 import { compressImage } from './image'
 import { flush, newId, outbox, send, type Delivery, type OutboxItem } from './outbox'
+import { saveVKUrl } from './transfer'
 
 export type ToastKind = 'ok' | 'bad' | 'info'
 export interface Toast {
@@ -32,6 +33,8 @@ export class Live {
   toasts = $state<Toast[]>([])
   /** Текущее время, тикает раз в секунду — для таймеров. */
   now = $state(Date.now())
+  /** Сервер не отвечает, хотя телефон в сети (например, «белые списки»). */
+  unreachable = $state(false)
   /** Токен больше не действует (игрока удалили) — надо войти заново. */
   unauthorized = $state(false)
 
@@ -191,12 +194,15 @@ export class Live {
       this.fetchedAt = Date.now()
       this.state = s
       this.error = null
+      this.unreachable = false
+      saveVKUrl(this.code, s.vk_url)
       precacheMedia(s)
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         this.unauthorized = true
         return
       }
+      if (isNetworkError(e)) this.unreachable = true
       if (!this.state) this.error = isNetworkError(e) ? 'Нет связи с сервером' : (e as Error).message
     }
   }

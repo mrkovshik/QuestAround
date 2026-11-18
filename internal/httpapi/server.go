@@ -28,6 +28,8 @@ type Config struct {
 	Static http.Handler
 	// TrashRetention — сколько удалённая игра лежит в корзине (по умолчанию 30 дней).
 	TrashRetention time.Duration
+	// VKURL — ссылка на диалог с сообществом VK-бота; пусто — бот выключен.
+	VKURL string
 }
 
 type Server struct {

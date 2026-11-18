@@ -79,6 +79,8 @@ export interface DashTeam {
   chat: ChatMsg[]
   current: LevelProgress[]
   levels: LevelProgress[]
+  /** Коды переноса в VK-бот: id игрока → QA-XXXX-XXXX. */
+  transfer_codes?: Record<string, string>
 }
 
 export interface Dashboard {

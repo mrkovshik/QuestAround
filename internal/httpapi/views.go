@@ -351,7 +351,9 @@ type playerStateDTO struct {
 	SOS          []sosDTO       `json:"sos"`
 	HostContact  string         `json:"host_contact,omitempty"`
 	Photos       []photoDTO     `json:"photos"`
-	Leaderboard  struct {
+	// VKURL — диалог с сообществом VK, если VK-бот включён (запасной канал).
+	VKURL       string `json:"vk_url,omitempty"`
+	Leaderboard struct {
 		Visible bool `json:"visible"`
 		Frozen  bool `json:"frozen"`
 		Final   bool `json:"final"`
@@ -425,6 +427,9 @@ type dashTeamDTO struct {
 	Chat         []chatDTO         `json:"chat"`
 	Current      []currentLevelDTO `json:"current"` // открытые сейчас
 	Levels       []currentLevelDTO `json:"levels"`  // все открытые когда-либо, по времени открытия
+	// TransferCodes — коды переноса игроков в VK (id игрока → QA-XXXX-XXXX):
+	// ведущий диктует код, если у игрока не открывается приложение.
+	TransferCodes map[string]string `json:"transfer_codes,omitempty"`
 }
 
 type dashboardDTO struct {
@@ -500,6 +505,10 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 		}
 		if dt.Players == nil {
 			dt.Players = []playerDTO{}
+		}
+		dt.TransferCodes = map[string]string{}
+		for _, p := range g.ActivePlayers(t.ID) {
+			dt.TransferCodes[p.ID] = core.TransferCode(p.TokenHash)
 		}
 		for _, sl := range g.Scenario.Levels {
 			ls := t.Levels[sl.ID]

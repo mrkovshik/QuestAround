@@ -177,6 +177,11 @@ func (s *Server) writeDashboard(w http.ResponseWriter, r *http.Request, rn *runn
 		s.writeError(w, r, err)
 		return
 	}
+	if s.cfg.VKURL == "" { // VK-бот выключен — коды переноса не нужны
+		for i := range d.Teams {
+			d.Teams[i].TransferCodes = nil
+		}
+	}
 	writeJSON(w, http.StatusOK, d)
 }
 

@@ -11,6 +11,8 @@
   import Comms from '../components/Comms.svelte'
   import Pic from '../components/Pic.svelte'
   import TeamPhotos from '../components/TeamPhotos.svelte'
+  import VKTransfer from '../components/VKTransfer.svelte'
+  import { loadVKUrl } from '../lib/transfer'
 
   let { code, token, onLogout }: { code: string; token: string; onLogout: () => void } = $props()
 
@@ -31,6 +33,9 @@
   })
 
   const s = $derived(live.state)
+  // Запасной канал — VK-бот; ссылка запомнена с прошлой загрузки, если сейчас сайт недоступен.
+  const vkUrl = $derived(s?.vk_url ?? loadVKUrl(code))
+  const noLink = $derived(!live.online || live.unreachable)
   const status = $derived(s?.team.status)
   const waiting = $derived(status === 'registered' || status === 'scheduled')
   const remaining = $derived.by(() => {
@@ -57,6 +62,7 @@
         <p>{live.error}</p>
         <button onclick={() => live.refresh()}>Повторить</button>
       </div>
+      {#if vkUrl}<VKTransfer {token} {vkUrl} open />{/if}
     {:else}
       <div class="spinner"></div>
     {/if}
@@ -75,10 +81,13 @@
     {/if}
   </header>
 
-  {#if !live.online || live.queued > 0}
-    <div class="net" class:off={!live.online}>
-      {#if !live.online}Нет сети.{/if}
+  {#if noLink || live.queued > 0}
+    <div class="net" class:off={noLink}>
+      {#if !live.online}Нет сети.{:else if live.unreachable}Сайт не отвечает.{/if}
       {#if live.queued > 0}В очереди ответов: {live.queued} — отправятся сами.{/if}
+      {#if noLink && vkUrl && tab !== 'comms'}
+        <button class="ghost small" onclick={() => (tab = 'comms')}>Играть через VK</button>
+      {/if}
     </div>
   {/if}
 
@@ -103,6 +112,7 @@
     {/if}
 
     {#if tab === 'comms'}
+      {#if vkUrl}<VKTransfer token={live.token} {vkUrl} open={noLink} />{/if}
       <Comms {live} />
     {:else if tab === 'team' || waiting}
       {#if waiting}

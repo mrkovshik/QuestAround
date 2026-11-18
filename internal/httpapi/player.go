@@ -164,6 +164,7 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request, p *player) {
 		return
 	}
 	s.resolveLevels(d.Levels)
+	d.VKURL = s.cfg.VKURL
 	writeJSON(w, http.StatusOK, d)
 }
 

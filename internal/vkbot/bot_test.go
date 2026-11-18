@@ -3,6 +3,8 @@ package vkbot
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
@@ -255,7 +257,7 @@ func TestGameFlow(t *testing.T) {
 	h := newHarness(t)
 
 	// Незнакомец получает инструкцию.
-	expect(t, h.msg(alice, "Привет"), "пришлите приглашение")
+	expect(t, h.msg(alice, "Привет"), "Пришлите приглашение")
 
 	// Вход по голому инвайту и по ссылке.
 	got := h.msg(alice, "abcdefgh")
@@ -389,7 +391,7 @@ func TestGameFlow(t *testing.T) {
 	if _, err := h.st.GetVK(h.ctx, bob); err == nil {
 		t.Fatal("после выхода привязка осталась")
 	}
-	expect(t, h.msg(bob, "1864"), "пришлите приглашение")
+	expect(t, h.msg(bob, "1864"), "Пришлите приглашение")
 }
 
 func TestUnknownInviteAndRemovedPlayer(t *testing.T) {
@@ -496,4 +498,40 @@ func TestRunLoop(t *testing.T) {
 	}
 	h.do(core.StartRun{})
 	waitFor("Найдите год")
+}
+
+// Команда целиком играла в приложении, потом включили «белые списки»:
+// в VK переходят те же игроки по коду переноса, даже если команда полная.
+func TestTransferFromApp(t *testing.T) {
+	h := newHarness(t)
+	hashOf := func(secret string) string {
+		sum := sha256.Sum256([]byte(secret))
+		return hex.EncodeToString(sum[:])
+	}
+	for i, name := range []string{"Капитан", "Вася", "Петя"} { // team_size.max = 3
+		h.do(core.JoinTeam{InviteCode: "ABCDEFGH", Player: core.NewPlayer{ID: fmt.Sprintf("p%d", i), Name: name, TokenHash: hashOf(fmt.Sprintf("secret-%d", i))}})
+	}
+	h.do(core.StartRun{})
+
+	// Новым игроком не войти — мест нет.
+	expect(t, h.msg(bob, "ABCDEFGH"), "нет мест")
+
+	// Код капитана — в любом написании.
+	code := core.TransferCode(hashOf("secret-0"))
+	loose := strings.ToLower(strings.ReplaceAll(code, "-", " "))
+	got := h.msg(alice, "мой код "+loose)
+	expect(t, got, "Капитан, вы продолжаете игру «Пилот» в VK", "Вы капитан", "Уровень 1 из 3")
+	if b, err := h.st.GetVK(h.ctx, alice); err != nil || b.PlayerID != "p0" {
+		t.Fatalf("привязка: %+v %v", b, err)
+	}
+	var players int
+	_ = h.rn.Read(h.ctx, func(g *core.Game) { players = len(g.ActivePlayers("t1")) })
+	if players != 3 {
+		t.Fatalf("игроков стало %d, ожидали 3", players)
+	}
+
+	// Ответ из VK засчитывается команде.
+	expect(t, h.msg(alice, "1864"), "Верно")
+
+	expect(t, h.msg(bob, "QA-ZZZZ-ZZZZ"), "Код не подошёл")
 }

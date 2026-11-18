@@ -81,6 +81,11 @@ func (b *Bot) handle(ctx context.Context, m Message) {
 		return
 	}
 
+	// Код переноса из приложения: тот же игрок, что играл на сайте.
+	if code, ok := parseTransfer(text); ok && p.Cmd == "" {
+		b.transfer(ctx, user, code)
+		return
+	}
 	// Приглашение работает всегда: так можно перейти в другую игру или команду.
 	if inv, ok := parseInvite(text, s == nil); ok && p.Cmd == "" {
 		b.join(ctx, user, s, inv)
@@ -192,10 +197,61 @@ func parseInvite(text string, bare bool) (invite, bool) {
 	return invite{}, false
 }
 
+var transferRe = regexp.MustCompile(`(?i)\bQA[\s-]?([A-Z0-9]{4})[\s-]?([A-Z0-9]{4})\b`)
+
+// parseTransfer узнаёт код переноса QA-XXXX-XXXX (с дефисами, пробелами или без).
+func parseTransfer(text string) (string, bool) {
+	m := transferRe.FindStringSubmatch(text)
+	if m == nil {
+		return "", false
+	}
+	return "QA-" + strings.ToUpper(m[1]) + "-" + strings.ToUpper(m[2]), true
+}
+
 func (b *Bot) greet(ctx context.Context, user int64) {
 	b.send(ctx, out{peer: user, keyboard: emptyKeyboard(), text: "Привет! Это бот городских квестов QuestAround.\n\n" +
-		"Чтобы играть, пришлите приглашение своей команды — ссылку вида …/g/ABC123/join/XXXXXXXX " +
+		"Уже играете в приложении? Нажмите там «Играть через VK» и пришлите сюда код вида QA-XXXX-XXXX — " +
+		"продолжите тем же игроком.\n\n" +
+		"Новый игрок? Пришлите приглашение своей команды — ссылку вида …/g/ABC123/join/XXXXXXXX " +
 		"или код приглашения из 8 символов. Его даёт капитан (в приложении: «Команда» → «Пригласить»)."})
+}
+
+// transfer привязывает VK к игроку, который уже играет в приложении.
+func (b *Bot) transfer(ctx context.Context, user int64, code string) {
+	runs, err := b.cfg.Store.ListRuns(ctx, b.cfg.OrgID)
+	if err != nil {
+		b.reply(ctx, user, "Что-то пошло не так на сервере. Попробуйте ещё раз через минуту.")
+		return
+	}
+	since := b.now().Add(-b.cfg.SearchWindow)
+	for _, run := range runs {
+		if run.CreatedAt.Before(since) {
+			continue
+		}
+		rn, err := b.cfg.Runners.Get(ctx, run.ID)
+		if err != nil {
+			continue
+		}
+		playerID := ""
+		_ = rn.Read(ctx, func(g *core.Game) {
+			if p, ok := g.PlayerByTransferCode(code); ok {
+				playerID = p.ID
+			}
+		})
+		if playerID == "" {
+			continue
+		}
+		if err := b.cfg.VK.BindVK(ctx, store.VKBinding{UserID: user, RunID: run.ID, PlayerID: playerID}); err != nil {
+			b.log.Error("vk: привязка по коду переноса", "user", user, "err", err)
+			b.reply(ctx, user, "Что-то пошло не так на сервере. Пришлите код ещё раз.")
+			return
+		}
+		b.setMode(user, "", 0)
+		b.watch(run.ID)
+		b.welcome(ctx, user, run, rn, playerID, true)
+		return
+	}
+	b.reply(ctx, user, "❌ Код не подошёл. Проверьте его в приложении («Связь» → «Играть через VK») или спросите у ведущего.")
 }
 
 // findInvite — игра и команда по приглашению.
@@ -256,7 +312,7 @@ func (b *Bot) join(ctx context.Context, user int64, cur *session, inv invite) {
 
 	name := b.playerName(ctx, user)
 	np := core.NewPlayer{ID: newID(), Name: name, TokenHash: randomHash()}
-	outc, err := rn.Do(ctx, core.JoinTeam{InviteCode: inv.code, Player: np})
+	_, err = rn.Do(ctx, core.JoinTeam{InviteCode: inv.code, Player: np})
 	if err != nil {
 		b.reply(ctx, user, "❌ "+humanErr(err)+".")
 		return
@@ -269,29 +325,39 @@ func (b *Bot) join(ctx context.Context, user int64, cur *session, inv invite) {
 	b.setMode(user, "", 0)
 	b.watch(run.ID)
 
-	s := &session{bind: store.VKBinding{UserID: user, RunID: run.ID, PlayerID: np.ID}, rn: rn, teamID: outc.Events[0].TeamID}
+	b.welcome(ctx, user, run, rn, np.ID, false)
+}
+
+// welcome — приветствие игрока в VK и текущее состояние игры.
+func (b *Bot) welcome(ctx context.Context, user int64, run store.Run, rn *runner.Runner, playerID string, transferred bool) {
 	var (
 		welcome string
 		outs    []out
+		captain bool
 	)
 	_ = rn.Read(ctx, func(g *core.Game) {
-		t := g.Teams[s.teamID]
-		s.captain = t.CaptainID == np.ID
+		p := g.Players[playerID]
+		t := g.Teams[p.TeamID]
+		captain = t.CaptainID == playerID
 		title := run.Title
 		if title == "" {
 			title = g.Scenario.Title
 		}
-		welcome = "🎉 Вы в игре «" + title + "».\n" + teamLine(g, t) + "."
-		if s.captain {
+		if transferred {
+			welcome = "🔄 " + p.Name + ", вы продолжаете игру «" + title + "» в VK.\n" + teamLine(g, t) + "."
+		} else {
+			welcome = "🎉 Вы в игре «" + title + "».\n" + teamLine(g, t) + "."
+		}
+		if captain {
 			welcome += "\nВы капитан: вам доступны сливы и чат с ведущим."
 		}
 		if g.HostContact != "" {
 			welcome += "\nЭкстренная связь с ведущим: " + g.HostContact
 		}
 		welcome += "\n\nОтветы присылайте сюда: код — текстом, место — кнопкой «Отправить местоположение»."
-		outs = b.statusMessages(g, s.teamID, s.captain)
+		outs = b.statusMessages(g, p.TeamID, captain)
 	})
-	b.send(ctx, out{peer: user, text: welcome, keyboard: mainKeyboard(s.captain)})
+	b.send(ctx, out{peer: user, text: welcome, keyboard: mainKeyboard(captain)})
 	for _, o := range outs {
 		o.peer = user
 		b.send(ctx, o)
