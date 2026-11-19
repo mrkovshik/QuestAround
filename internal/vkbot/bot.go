@@ -9,9 +9,16 @@
 package vkbot
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	_ "image/gif"
+	"image/jpeg"
+	_ "image/png"
 	"io"
 	"log/slog"
 	"path"
@@ -247,10 +254,28 @@ func (b *Bot) photo(ctx context.Context, peer int64, key string) string {
 		b.log.Warn("картинка не найдена", "key", key, "err", err)
 		return ""
 	}
-	defer f.Close()
-	att, err = b.cfg.API.UploadPhoto(ctx, peer, path.Base(key), f)
+	data, err := io.ReadAll(f)
+	f.Close()
 	if err != nil {
-		b.log.Error("загрузка картинки в VK", "key", key, "err", err)
+		b.log.Warn("картинка не читается", "key", key, "err", err)
+		return ""
+	}
+	// Сервер загрузки VK иногда отказывает (405 и т.п.): пробуем ещё раз
+	// с новым адресом, затем — перекодированной в JPEG (меньше и надёжнее).
+	name := path.Base(key)
+	att, err = b.cfg.API.UploadPhoto(ctx, peer, name, bytes.NewReader(data))
+	if err != nil {
+		b.log.Warn("загрузка картинки в VK, повтор", "key", key, "bytes", len(data), "err", err)
+		att, err = b.cfg.API.UploadPhoto(ctx, peer, name, bytes.NewReader(data))
+	}
+	if err != nil {
+		if jpg, ok := toJPEG(data); ok {
+			b.log.Warn("загрузка картинки в VK, пробуем JPEG", "key", key, "bytes", len(data), "jpeg_bytes", len(jpg), "err", err)
+			att, err = b.cfg.API.UploadPhoto(ctx, peer, strings.TrimSuffix(name, path.Ext(name))+".jpg", bytes.NewReader(jpg))
+		}
+	}
+	if err != nil {
+		b.log.Error("загрузка картинки в VK", "key", key, "bytes", len(data), "err", err)
 		return ""
 	}
 	b.mu.Lock()
@@ -304,4 +329,49 @@ func (b *Bot) session(ctx context.Context, userID int64) (*session, error) {
 	}
 	b.watch(bd.RunID)
 	return s, nil
+}
+
+// toJPEG перекодирует PNG/GIF/JPEG в JPEG: прозрачность — на белом фоне,
+// стороны больше 2560 px уменьшаются.
+func toJPEG(data []byte) ([]byte, bool) {
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, false
+	}
+	bnd := src.Bounds()
+	w, h := bnd.Dx(), bnd.Dy()
+	if w == 0 || h == 0 {
+		return nil, false
+	}
+	scale := 1
+	for max(w, h)/scale > 2560 {
+		scale++
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, w/scale, h/scale))
+	draw.Draw(dst, dst.Bounds(), image.White, image.Point{}, draw.Src)
+	if scale == 1 {
+		draw.Draw(dst, dst.Bounds(), src, bnd.Min, draw.Over)
+	} else {
+		// Простое уменьшение по ближайшему пикселю — для картинок задания хватает.
+		for y := 0; y < h/scale; y++ {
+			for x := 0; x < w/scale; x++ {
+				// RGBA премультиплицирован: на белом фоне это v + 255·(1−α).
+				c := color.RGBAModel.Convert(src.At(bnd.Min.X+x*scale, bnd.Min.Y+y*scale)).(color.RGBA)
+				bg := 255 - uint32(c.A)
+				dst.SetRGBA(x, y, color.RGBA{sat(uint32(c.R) + bg), sat(uint32(c.G) + bg), sat(uint32(c.B) + bg), 255})
+			}
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 85}); err != nil {
+		return nil, false
+	}
+	return buf.Bytes(), true
+}
+
+func sat(v uint32) uint8 {
+	if v > 255 {
+		return 255
+	}
+	return uint8(v)
 }
