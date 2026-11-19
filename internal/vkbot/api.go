@@ -352,6 +352,8 @@ type payload struct {
 	Cmd   string `json:"cmd"`
 	Level string `json:"level,omitempty"`
 	Idx   int    `json:"idx,omitempty"`
+	Run   string `json:"run,omitempty"`
+	Team  string `json:"team,omitempty"`
 	// Command — стандартная кнопка «Начать» VK присылает {"command":"start"}.
 	Command string `json:"command,omitempty"`
 }

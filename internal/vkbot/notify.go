@@ -374,10 +374,20 @@ func (n *notifier) event(e core.Event) {
 			n.outs = append(n.outs, out{peer: u.UserID, text: text, keyboard: mainKeyboard(t.CaptainID == u.PlayerID)})
 		}
 
+	case core.PlayerJoined:
+		if p.Captain {
+			return // команду только что создали
+		}
+		for _, u := range n.team(e.TeamID) {
+			if u.PlayerID != e.PlayerID {
+				n.outs = append(n.outs, out{peer: u.UserID, text: "👋 В команду вступил(а) " + p.Name + "."})
+			}
+		}
+
 	case core.PlayerRemoved:
 		for _, u := range n.users {
 			if u.PlayerID == p.PlayerID {
-				n.outs = append(n.outs, out{peer: u.UserID, text: "Вас убрали из команды. Чтобы играть снова, пришлите приглашение.", keyboard: emptyKeyboard()})
+				n.outs = append(n.outs, out{peer: u.UserID, text: "Вас убрали из команды. Чтобы играть снова, пришлите приглашение.", keyboard: guestKeyboard()})
 				n.removed = append(n.removed, u.UserID)
 			}
 		}

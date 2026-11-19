@@ -18,8 +18,10 @@ import (
 
 // mode — бот ждёт от пользователя особого сообщения (не ответа на задание).
 type mode struct {
-	kind  string // cmdHost | cmdSOS
-	until time.Time
+	kind   string // cmdHost | cmdSOS | modeTeamName | modeTeamCode
+	until  time.Time
+	runID  string // для регистрации: выбранная игра
+	teamID string // и команда
 }
 
 const (
@@ -27,15 +29,24 @@ const (
 	sosModeTTL  = 30 * time.Minute
 )
 
-func (b *Bot) getMode(user int64) string {
+func (b *Bot) getMode(user int64) string { return b.modeOf(user).kind }
+
+func (b *Bot) modeOf(user int64) mode {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	m, ok := b.modes[user]
 	if !ok || b.now().After(m.until) {
 		delete(b.modes, user)
-		return ""
+		return mode{}
 	}
-	return m.kind
+	return m
+}
+
+func (b *Bot) setModeFull(user int64, m mode, ttl time.Duration) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	m.until = b.now().Add(ttl)
+	b.modes[user] = m
 }
 
 func (b *Bot) setMode(user int64, kind string, ttl time.Duration) {
@@ -58,6 +69,8 @@ var slash = map[string]string{
 	"/помощь": cmdSOS, "/sos": cmdSOS, "/сос": cmdSOS,
 	"/отмена": cmdCancel, "/cancel": cmdCancel,
 	"/выход": cmdLeave, "/leave": cmdLeave,
+	"/игры": cmdGames, "/games": cmdGames, "игры": cmdGames,
+	"/команда": cmdTeam, "/team": cmdTeam,
 }
 
 // HandleMessage обрабатывает входящее сообщение (экспортировано для тестов).
@@ -81,6 +94,48 @@ func (b *Bot) handle(ctx context.Context, m Message) {
 		return
 	}
 
+	// Регистрация: список игр, карточка игры, создание команды, вступление.
+	switch p.Cmd {
+	case cmdGames:
+		b.gamesList(ctx, user)
+		return
+	case cmdGame:
+		b.gameCardByID(ctx, user, p.Run)
+		return
+	case cmdNewTeam:
+		b.startNewTeam(ctx, user, s, p.Run)
+		return
+	case cmdJoinTeam:
+		b.startJoinTeam(ctx, user, p.Run, p.Team)
+		return
+	}
+	if md := b.modeOf(user); md.kind == modeTeamName || md.kind == modeTeamCode {
+		switch {
+		case p.Cmd == cmdCancel:
+			b.setMode(user, "", 0)
+			if s != nil {
+				b.send(ctx, out{peer: user, text: "Отменено.", keyboard: mainKeyboard(s.captain)})
+			} else {
+				b.send(ctx, out{peer: user, text: "Отменено.", keyboard: guestKeyboard()})
+			}
+			return
+		case p.Cmd == "" && md.kind == modeTeamName:
+			run, err := b.cfg.Store.GetRun(ctx, md.runID)
+			rn, err2 := b.cfg.Runners.Get(ctx, md.runID)
+			if err != nil || err2 != nil {
+				b.setMode(user, "", 0)
+				b.reply(ctx, user, "Игра не найдена.")
+				return
+			}
+			b.register(ctx, user, run, rn, text)
+			return
+		case p.Cmd == "" && md.kind == modeTeamCode:
+			b.joinChosenTeam(ctx, user, s, md, text)
+			return
+		}
+		b.setMode(user, "", 0) // другая команда — выходим из регистрации
+	}
+
 	// Код переноса из приложения: тот же игрок, что играл на сайте.
 	if code, ok := parseTransfer(text); ok && p.Cmd == "" {
 		b.transfer(ctx, user, code)
@@ -90,6 +145,11 @@ func (b *Bot) handle(ctx context.Context, m Message) {
 	if inv, ok := parseInvite(text, s == nil); ok && p.Cmd == "" {
 		b.join(ctx, user, s, inv)
 		return
+	}
+	if code, ok := parseGameLink(text, s == nil); ok && p.Cmd == "" {
+		if b.gameCardByCode(ctx, user, code) {
+			return
+		}
 	}
 	if s == nil {
 		b.greet(ctx, user)
@@ -131,6 +191,9 @@ func (b *Bot) handle(ctx context.Context, m Message) {
 		return
 	case cmdLeave:
 		b.leave(ctx, user)
+		return
+	case cmdTeam:
+		b.teamCard(ctx, user, s)
 		return
 	}
 
@@ -209,7 +272,8 @@ func parseTransfer(text string) (string, bool) {
 }
 
 func (b *Bot) greet(ctx context.Context, user int64) {
-	b.send(ctx, out{peer: user, keyboard: emptyKeyboard(), text: "Привет! Это бот городских квестов QuestAround.\n\n" +
+	b.send(ctx, out{peer: user, keyboard: guestKeyboard(), text: "Привет! Это бот городских квестов QuestAround.\n\n" +
+		"🎲 «Доступные игры» — записаться в игру: создать команду или вступить в команду по коду.\n\n" +
 		"Уже играете в приложении? Нажмите там «Играть через VK» и пришлите сюда код вида QA-XXXX-XXXX — " +
 		"продолжите тем же игроком.\n\n" +
 		"Новый игрок? Пришлите приглашение своей команды — ссылку вида …/g/ABC123/join/XXXXXXXX " +
@@ -381,8 +445,8 @@ func (b *Bot) leave(ctx context.Context, user int64) {
 	if err := b.cfg.VK.UnbindVK(ctx, user); err != nil {
 		b.log.Error("vk: отвязка", "user", user, "err", err)
 	}
-	b.send(ctx, out{peer: user, keyboard: emptyKeyboard(),
-		text: "Вы вышли из игры в VK. Чтобы вернуться, пришлите приглашение команды."})
+	b.send(ctx, out{peer: user, keyboard: guestKeyboard(),
+		text: "Вы вышли из игры в VK. Чтобы вернуться, пришлите приглашение команды или выберите игру в «Доступных играх»."})
 }
 
 // --- игровые действия ---

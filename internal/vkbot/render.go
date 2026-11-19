@@ -27,6 +27,11 @@ const (
 	cmdSOSSend  = "sos_send"
 	cmdCancel   = "cancel"
 	cmdLeave    = "leave"
+	cmdGames    = "games"
+	cmdGame     = "game"
+	cmdNewTeam  = "new_team"
+	cmdJoinTeam = "join_team"
+	cmdTeam     = "team"
 )
 
 const (
@@ -49,12 +54,12 @@ func mainKeyboard(captain bool) *Keyboard {
 			textButton(labelHost, "secondary", payload{Cmd: cmdHost}),
 		})
 	}
-	kb.Buttons = append(kb.Buttons, []Button{textButton(labelSOS, "negative", payload{Cmd: cmdSOS})})
+	kb.Buttons = append(kb.Buttons, []Button{
+		textButton(labelTeam, "secondary", payload{Cmd: cmdTeam}),
+		textButton(labelSOS, "negative", payload{Cmd: cmdSOS}),
+	})
 	return kb
 }
-
-// emptyKeyboard убирает клавиатуру.
-func emptyKeyboard() *Keyboard { return &Keyboard{Buttons: [][]Button{}} }
 
 func inline(rows ...[]Button) *Keyboard {
 	return &Keyboard{Inline: true, Buttons: rows}

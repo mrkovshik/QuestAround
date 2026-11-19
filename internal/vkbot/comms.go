@@ -97,11 +97,19 @@ func humanErr(err error) string {
 		errors.Is(err, core.ErrLevelNotOpen), errors.Is(err, core.ErrAlreadyPending),
 		errors.Is(err, core.ErrLocationRevealed), errors.Is(err, core.ErrEmptyAnswer),
 		errors.Is(err, core.ErrRegistrationClosed), errors.Is(err, core.ErrRunNotRunning):
-		msg := err.Error()
-		r := []rune(msg)
-		return strings.ToUpper(string(r[:1])) + string(r[1:])
+		return capitalize(err.Error())
+	case errors.Is(err, core.ErrRegistrationFull), errors.Is(err, core.ErrRunStarted):
+		return capitalize(err.Error())
 	}
 	return "не получилось, попробуйте ещё раз"
+}
+
+func capitalize(s string) string {
+	r := []rune(s)
+	if len(r) == 0 {
+		return s
+	}
+	return strings.ToUpper(string(r[:1])) + string(r[1:])
 }
 
 const idAlphabet = "abcdefghijkmnpqrstuvwxyz23456789"

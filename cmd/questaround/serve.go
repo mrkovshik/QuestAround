@@ -103,12 +103,13 @@ func cmdServe(args []string) error {
 			return errors.New("задайте QUESTAROUND_VK_GROUP_ID вместе с QUESTAROUND_VK_TOKEN")
 		}
 		bot := vkbot.New(vkbot.Config{
-			API:     &vkbot.Client{Token: *vkToken, GroupID: *vkGroup},
-			Store:   st,
-			VK:      st.(store.VKStore),
-			Runners: runners,
-			Media:   media,
-			Logger:  log,
+			API:      &vkbot.Client{Token: *vkToken, GroupID: *vkGroup},
+			Store:    st,
+			VK:       st.(store.VKStore),
+			Runners:  runners,
+			Media:    media,
+			Logger:   log,
+			GroupURL: vkURL,
 		})
 		go func() {
 			if err := bot.Run(runnersCtx); err != nil {

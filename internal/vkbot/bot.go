@@ -52,6 +52,8 @@ type Config struct {
 	SearchWindow time.Duration
 	// Location — часовой пояс для времени в сообщениях (по умолчанию time.Local).
 	Location *time.Location
+	// GroupURL — ссылка «написать сообществу» для приглашений.
+	GroupURL string
 }
 
 type Bot struct {
