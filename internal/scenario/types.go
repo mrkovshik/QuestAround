@@ -2,7 +2,11 @@
 // значения по умолчанию и валидацию с номерами строк в ошибках.
 package scenario
 
-import "questaround/internal/routes"
+import (
+	"time"
+
+	"questaround/internal/routes"
+)
 
 // SchemaVersion — поддерживаемая версия схемы сценария.
 const SchemaVersion = 1
@@ -144,9 +148,31 @@ type Defaults struct {
 	AnswerNormalize []string   `yaml:"answer_normalize"`
 }
 
+// RateLimit — защита от перебора кодов: WrongAnswers неверных кодов за Per.
+// В defaults — общая для всей игры: ввод кодов закрыт, пока ошибки не выйдут из окна.
+// У уровня — своя, с действием при срабатывании (Action и поля ниже — только у уровня).
 type RateLimit struct {
 	WrongAnswers int      `yaml:"wrong_answers"`
 	Per          Duration `yaml:"per"`
+
+	Action   RateLimitAction `yaml:"action"`    // block (по умолчанию) | penalty
+	BlockFor Duration        `yaml:"block_for"` // block: на сколько закрыть ввод; не задано — на per
+	Penalty  *Penalty        `yaml:"penalty"`   // penalty: штраф за каждое срабатывание
+}
+
+type RateLimitAction string
+
+const (
+	RateLimitBlock   RateLimitAction = "block"   // ввод кодов на уровне закрывается на block_for
+	RateLimitPenalty RateLimitAction = "penalty" // штраф, ввод не закрывается
+)
+
+// BlockDuration — на сколько закрывается ввод при action: block.
+func (r *RateLimit) BlockDuration() time.Duration {
+	if r.BlockFor > 0 {
+		return r.BlockFor.D()
+	}
+	return r.Per.D()
 }
 
 // --- уровни ---
@@ -165,9 +191,11 @@ type Level struct {
 	// Location — «слив локации»: капитан может получить место (адрес и/или точку) со штрафом.
 	Location *Location `yaml:"location"`
 	// Skip — «слив уровня»: капитан может засчитать уровень без ответа со штрафом.
-	Skip    *Skip   `yaml:"skip"`
-	Bonuses []Bonus `yaml:"bonuses"`
-	Unlock  *Unlock `yaml:"unlock"` // только для flow: graph
+	Skip *Skip `yaml:"skip"`
+	// RateLimit — своя защита от перебора кодов на уровне (вместо defaults.rate_limit).
+	RateLimit *RateLimit `yaml:"rate_limit"`
+	Bonuses   []Bonus    `yaml:"bonuses"`
+	Unlock    *Unlock    `yaml:"unlock"` // только для flow: graph
 }
 
 // Location — что получит команда при сливе локации.

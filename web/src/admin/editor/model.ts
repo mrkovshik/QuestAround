@@ -66,6 +66,7 @@ export interface Level {
   hints?: Hint[]
   location?: { text?: string; point?: number[]; penalty?: Penalty; available_after?: string }
   skip?: { penalty?: Penalty; available_after?: string }
+  rate_limit?: { wrong_answers?: number | null; per?: string; action?: 'block' | 'penalty'; block_for?: string; penalty?: Penalty }
   bonuses?: Bonus[]
   unlock?: Unlock
   [k: string]: unknown
@@ -195,7 +196,7 @@ export function toYaml(d: Draft): string {
 
 // Порядок ключей верхнего уровня — как в документации.
 const TOP = ['version', 'id', 'title', 'description', 'participants', 'timing', 'start', 'flow', 'scoring', 'leaderboard', 'defaults', 'levels']
-const LEVEL = ['id', 'pin', 'chain', 'title', 'task', 'media', 'points', 'require', 'unlock', 'answers', 'hints', 'location', 'skip', 'bonuses']
+const LEVEL = ['id', 'pin', 'chain', 'title', 'task', 'media', 'points', 'require', 'unlock', 'answers', 'hints', 'location', 'skip', 'rate_limit', 'bonuses']
 
 function order(d: Draft): Record<string, unknown> {
   const out: Record<string, unknown> = {}
@@ -336,6 +337,28 @@ export function removeLevelRefs(d: Draft, id: string) {
     l.unlock.of = drop(l.unlock.of)
   }
   if (d.flow.route_list) d.flow.route_list = d.flow.route_list.map((r) => drop(r) ?? [])
+}
+
+// --- подсказки ---
+
+/**
+ * Время из расписания (defaults.hint_after) для i-й подсказки уровня, если она его использует:
+ * расписание раздаётся по порядку подсказкам без «по запросу» — как на сервере.
+ */
+export function scheduledAfter(level: Level, i: number, hintAfter: string[]): string | undefined {
+  const hints = level.hints ?? []
+  if (hints[i]?.on_request) return undefined
+  const k = hints.slice(0, i).filter((x) => !x.on_request).length
+  return hintAfter.filter(Boolean)[k]
+}
+
+export const isZeroDur = (v?: string) => !!v && /^0+[smh]?$/.test(v.trim())
+
+/** Штраф словами: «+10 мин», «−5 б.», «без штрафа». */
+export function penaltyShort(p?: Penalty): string {
+  if (p?.time && !isZeroDur(p.time)) return '+' + (humanDuration(p.time) || p.time)
+  if (p?.points) return `−${p.points} б.`
+  return 'без штрафа'
 }
 
 // --- длительности и прочее ---

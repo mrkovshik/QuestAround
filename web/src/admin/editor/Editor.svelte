@@ -8,6 +8,7 @@
   import { ScenarioError, type AdminApi, type ScenarioIssue } from '../adminApi'
   import LevelForm from './LevelForm.svelte'
   import Routes from './Routes.svelte'
+  import Schedule from './Schedule.svelte'
   import Settings from './Settings.svelte'
   import YamlView from './YamlView.svelte'
   import { emptyDraft, fromYaml, newLevel, toYaml, type Level } from './model'
@@ -238,6 +239,7 @@
               {#if ed.count('flow.route_list')}<span class="counter">{ed.count('flow.route_list')}</span>{/if}
             </button>
           {/if}
+          <button class="nav" class:active={ed.view === 'schedule'} onclick={() => (ed.view = 'schedule')}>⏱ Подсказки и сливы</button>
           <button class="nav" class:active={ed.view === 'yaml'} onclick={() => (ed.view = 'yaml')}>{'</>'} YAML</button>
         </nav>
 
@@ -301,6 +303,8 @@
           <Settings existingSlug={base?.slug} />
         {:else if ed.view === 'routes'}
           <Routes />
+        {:else if ed.view === 'schedule'}
+          <Schedule />
         {:else if ed.view === 'yaml'}
           <YamlView />
         {:else if typeof ed.view === 'number' && ed.draft.levels[ed.view]}

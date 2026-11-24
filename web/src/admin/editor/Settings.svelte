@@ -196,20 +196,16 @@
             .map((x) => (/^\d+$/.test(x) ? x + 'm' : x)))}
       />
     </Field>
-    <Field label="Защита от перебора: неверных ответов" path="defaults.rate_limit.wrong_answers" hint="Пусто — без ограничения">
-      <input
-        type="number"
-        min="1"
-        value={rate?.wrong_answers ?? ''}
-        oninput={(e) => {
-          const n = e.currentTarget.valueAsNumber
-          d.defaults.rate_limit = Number.isFinite(n) && n > 0 ? { wrong_answers: n, per: rate?.per ?? '1m' } : undefined
-        }}
-      />
-    </Field>
-    {#if rate?.wrong_answers}
-      <Field label="за" path="defaults.rate_limit.per">
-        <Dur bind:value={rate.per} placeholder="1m" />
+    {#if rate}
+      <!-- Старые сценарии: общая защита на всю игру. Новую задают у уровней. -->
+      <Field label="Общая защита от перебора" path="defaults.rate_limit" wide>
+        <div class="row wrap">
+          <span>
+            {rate.wrong_answers ?? '?'} неверных кодов за {rate.per ?? '?'} — ввод закрыт на всех уровнях без своей защиты.
+          </span>
+          <button class="ghost small" onclick={() => delete d.defaults.rate_limit}>Убрать</button>
+        </div>
+        <div class="hint">Защиту лучше задавать у нужных уровней: там же выбирается действие — блокировка или штраф.</div>
       </Field>
     {/if}
   </section>

@@ -67,6 +67,11 @@ func ParseWith(data []byte, opt Options) (*Scenario, error) {
 }
 
 func (s *Scenario) applyDefaults() {
+	for i := range s.Levels {
+		if rl := s.Levels[i].RateLimit; rl != nil && rl.Action == "" {
+			rl.Action = RateLimitBlock
+		}
+	}
 	p := &s.Participants
 	if p.Mode == "" {
 		p.Mode = ParticipantsTeam

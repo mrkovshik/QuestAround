@@ -323,6 +323,7 @@ func (s *Server) hostSubmitAnswer(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
+	cmd.ByHost = true
 	rn, err := s.runner(r)
 	if err != nil {
 		s.writeError(w, r, err)

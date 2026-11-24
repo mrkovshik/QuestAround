@@ -4,8 +4,9 @@
   import Dur from './Dur.svelte'
   import Field from './Field.svelte'
   import MediaPicker from './MediaPicker.svelte'
+  import RateLimitEdit from './RateLimitEdit.svelte'
   import SlivEdit from './SlivEdit.svelte'
-  import { ID_RE, cloneLevel, humanDuration, newAnswer, removeLevelRefs, renameLevel, uniqueId, type Hint, type Level } from './model'
+  import { ID_RE, cloneLevel, humanDuration, scheduledAfter, newAnswer, removeLevelRefs, renameLevel, uniqueId, type Hint, type Level } from './model'
   import { useEditor } from './state.svelte'
 
   let { level, index }: { level: Level; index: number } = $props()
@@ -48,12 +49,7 @@
 
   // Время из расписания (defaults.hint_after) для i-й подсказки, если она его использует:
   // расписание раздаётся по порядку подсказкам без «по запросу» — как на сервере.
-  function scheduled(i: number): string | undefined {
-    const hints = level.hints ?? []
-    if (hints[i]?.on_request) return undefined
-    const k = hints.slice(0, i).filter((x) => !x.on_request).length
-    return hintAfter[k]
-  }
+  const scheduled = (i: number) => scheduledAfter(level, i, hintAfter)
 
   function summary(h: Hint, sched?: string): string {
     const auto = hasAfter(h) && !isZero(h.after) ? h.after : !h.on_request && !hasAfter(h) ? sched : undefined
@@ -289,6 +285,8 @@
   </section>
 
   <SlivEdit {level} path={P} />
+
+  <RateLimitEdit {level} path={P} />
 
   <section class="card">
     <h3>Бонусы</h3>

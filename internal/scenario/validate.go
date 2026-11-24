@@ -180,6 +180,9 @@ func (v *validator) validateDefaults() {
 		if rl.Per == 0 {
 			v.add(p("defaults", "rate_limit", "per"), "должно быть > 0")
 		}
+		if rl.Action != "" || rl.BlockFor != 0 || rl.Penalty != nil {
+			v.add(p("defaults", "rate_limit"), "action, block_for и penalty задаются только у защиты уровня")
+		}
 	}
 	for i, op := range d.AnswerNormalize {
 		if !knownNormalize[op] {
@@ -301,6 +304,9 @@ func (v *validator) validateLevels() {
 		}
 		if l.Skip != nil {
 			v.validatePenalty(lp("skip"), l.Skip.Penalty)
+		}
+		if rl := l.RateLimit; rl != nil {
+			v.validateLevelRateLimit(lp("rate_limit"), &l, rl)
 		}
 
 		// Бонусы.
@@ -573,6 +579,43 @@ func (v *validator) validatePoint(path []any, p []float64) {
 	if p[1] < -180 || p[1] > 180 {
 		v.add(path, "долгота %v вне диапазона [-180, 180]", p[1])
 	}
+}
+
+// validateLevelRateLimit — защита от перебора у уровня.
+func (v *validator) validateLevelRateLimit(path []any, l *Level, rl *RateLimit) {
+	at := func(k string) []any { return append(slices.Clip(path), k) }
+	if rl.WrongAnswers < 1 {
+		v.add(at("wrong_answers"), "должно быть ≥ 1")
+	}
+	if rl.Per <= 0 {
+		v.add(at("per"), "должно быть > 0")
+	}
+	switch rl.Action {
+	case RateLimitBlock:
+		if rl.Penalty != nil {
+			v.add(at("penalty"), "штраф — только при action: penalty")
+		}
+		if rl.BlockFor < 0 {
+			v.add(at("block_for"), "должно быть > 0")
+		}
+	case RateLimitPenalty:
+		if rl.BlockFor != 0 {
+			v.add(at("block_for"), "block_for — только при action: block")
+		}
+		if rl.Penalty == nil {
+			v.add(at("penalty"), "укажите штраф: penalty: {time: 5m}")
+		}
+		v.validatePenalty(path, rl.Penalty)
+	default:
+		v.add(at("action"), "неизвестное действие %q (block, penalty)", rl.Action)
+	}
+	if !slices.ContainsFunc(l.Answers, func(a Answer) bool { return isCodeLike(a.Type) }) {
+		v.add(path, "защита от перебора работает только для кодов, а у уровня нет ответов code, regex или choice")
+	}
+}
+
+func isCodeLike(t AnswerType) bool {
+	return t == AnswerCode || t == AnswerRegex || t == AnswerChoice
 }
 
 // validatePenalty — штраф подсказки по запросу или слива: время или баллы.

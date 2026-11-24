@@ -38,6 +38,9 @@ type SubmitAnswer struct {
 	Lng      float64
 	Accuracy float64 // метры
 	MediaKey string
+
+	// ByHost — ведущий вводит ответ за команду: защита от перебора не мешает и не считает ошибки.
+	ByHost bool
 }
 
 // RequestHint — открыть подсказку по запросу (со штрафом).

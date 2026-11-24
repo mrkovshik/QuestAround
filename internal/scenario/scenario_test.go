@@ -298,6 +298,45 @@ func TestValidationErrors(t *testing.T) {
 			want: "никогда не откроется",
 		},
 		{
+			name: "защита уровня: штраф при block",
+			yaml: head + `levels:
+  - id: a
+    task: x
+    answers: [{type: code, values: ["1"]}]
+    rate_limit: {wrong_answers: 3, per: 1m, penalty: {time: 1m}}
+`,
+			want: "только при action: penalty",
+		},
+		{
+			name: "защита уровня: penalty без штрафа",
+			yaml: head + `levels:
+  - id: a
+    task: x
+    answers: [{type: code, values: ["1"]}]
+    rate_limit: {wrong_answers: 3, per: 1m, action: penalty}
+`,
+			want: "укажите штраф",
+		},
+		{
+			name: "защита уровня без кодов",
+			yaml: head + `levels:
+  - id: a
+    task: x
+    answers: [{type: photo}]
+    rate_limit: {wrong_answers: 3, per: 1m}
+`,
+			want: "только для кодов",
+		},
+		{
+			name: "action в общей защите",
+			yaml: head + `defaults:
+  rate_limit: {wrong_answers: 3, per: 1m, action: penalty}
+levels:
+  - {id: a, task: x, answers: [{type: code, values: ["1"]}]}
+`,
+			want: "только у защиты уровня",
+		},
+		{
 			name: "штраф и временем, и баллами",
 			yaml: head + `levels:
   - id: a

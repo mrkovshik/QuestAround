@@ -91,6 +91,16 @@ with sync_playwright() as p:
     expect(sk_av).to_have_value("45m")
     page.screenshot(path=f"{SHOTS}/e02a-sliv.png", full_page=True)
 
+    # защита от перебора у уровня: по умолчанию блокировка, переключаем на штраф
+    rl = lvl.locator("[data-path='levels[0].rate_limit']")
+    rl.locator("label.chk input").check()
+    expect(rl.locator("[data-path='levels[0].rate_limit.wrong_answers'] input")).to_have_value("5")
+    expect(rl.locator("[data-path='levels[0].rate_limit.block_for'] input")).to_have_value("5m")
+    expect(rl.locator(".sum")).to_contain_text("ввод кодов на уровне закрывается на 5 мин")
+    rl.locator("[data-path='levels[0].rate_limit.action'] select").select_option("penalty")
+    expect(rl.locator("[data-path='levels[0].rate_limit.penalty.time'] input")).to_have_value("5m")
+    expect(rl.locator(".sum")).to_contain_text("+5 мин к времени")
+
     # --- уровень 2: геоточка + бонус-фото ---
     ed.locator("button", has_text="＋ уровень").click()
     lvl.locator("[data-path='levels[1].title'] input").fill("Мост")
@@ -124,6 +134,22 @@ with sync_playwright() as p:
 
     expect(ed.locator(".status")).to_have_text("✓ ошибок нет", timeout=5000)
     page.screenshot(path=f"{SHOTS}/e03-level.png", full_page=True)
+
+    # --- расписание подсказок и сливов ---
+    ed.locator(".nav", has_text="Подсказки и сливы").click()
+    sched = ed.locator(".sched")
+    first = sched.locator("tbody tr").first
+    expect(first.locator("[data-path='levels[0].hints[0]'] input")).to_have_value("20m")
+    expect(first.locator("[data-path='levels[0].hints[0]'] .tag")).to_have_text("запрос +10 мин или сама")
+    expect(first.locator("[data-path='levels[0].hints[1]'] .tag")).to_have_text("только запрос +10 мин")
+    expect(first).to_contain_text("защита от перебора")
+    sk = first.locator("[data-path='levels[0].skip'] input")
+    sk.fill("50")
+    sk.blur()
+    expect(sched.locator(".tl")).to_contain_text("50 мин 1. Сбор — слив уровня")
+    page.screenshot(path=f"{SHOTS}/e03a-schedule.png", full_page=True)
+    sched.locator("tbody tr").first.locator("button.link").click()
+    expect(lvl.locator("[data-path='levels[0].skip.available_after'] input")).to_have_value("50m")
 
     # --- маршруты: ротация, финиш у всех последний ---
     ed.locator(".nav", has_text="Маршруты").click()
@@ -172,7 +198,8 @@ with sync_playwright() as p:
     for want in ["id: test-konstruktora", "routes: rotate", "pin: first", "point: [44.6338, 39.1352]",
                  "on_request: true", "after: 20m", "after: 0", "penalty: {time: 10m}",
                  "    location:\n      text: Главный вход в парк\n      penalty: {time: 15m}",
-                 "    skip:\n      penalty: {time: 30m}\n      available_after: 45m", "    location: {}"]:
+                 "    skip:\n      penalty: {time: 30m}\n      available_after: 50m",
+                 "    rate_limit:\n      wrong_answers: 5\n      per: 1m\n      action: penalty\n      penalty: {time: 5m}", "    location: {}"]:
         assert want in src, f"нет в YAML: {want}\n{src}"
     page.screenshot(path=f"{SHOTS}/e05-yaml.png")
 

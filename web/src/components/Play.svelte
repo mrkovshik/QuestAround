@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Live } from '../lib/live.svelte'
+  import { countdown } from '../lib/format'
   import LevelCard from './LevelCard.svelte'
 
   let { live }: { live: Live } = $props()
@@ -16,6 +17,13 @@
       (open.some((l) => l.answers.some((a) => a.type === 'code' && !a.solved && !a.options)) ||
         s.levels.some((l) => l.bonuses?.some((b) => b.type === 'code' && !b.done))),
   )
+
+  // Своя защита уровня: в линейной игре (один открытый уровень) закрывает общее поле.
+  const blockedFor = $derived.by(() => {
+    if (open.length !== 1) return 0
+    const until = open[0].rate_limit?.blocked_until
+    return until ? (Date.parse(until) - live.now) / 1000 : 0
+  })
 
   let code = $state('')
   let input: HTMLInputElement | undefined = $state()
@@ -55,14 +63,15 @@
     <input
       bind:this={input}
       bind:value={code}
-      placeholder="Введите код"
+      placeholder={blockedFor > 0 ? `Ввод закрыт ещё ${countdown(blockedFor)}` : 'Введите код'}
+      disabled={blockedFor > 0}
       autocomplete="off"
       autocorrect="off"
       autocapitalize="none"
       spellcheck="false"
       enterkeyhint="send"
     />
-    <button disabled={!code.trim() || live.busy}>Отправить</button>
+    <button disabled={!code.trim() || live.busy || blockedFor > 0}>Отправить</button>
   </form>
 {/if}
 

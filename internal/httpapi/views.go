@@ -84,22 +84,55 @@ type bonusDTO struct {
 }
 
 type levelDTO struct {
-	ID          string          `json:"id"`
-	Title       string          `json:"title"`
-	Task        string          `json:"task"`
-	Media       []string        `json:"media,omitempty"`
-	Points      int             `json:"points"`
-	Open        bool            `json:"open"`
-	OpenedAt    time.Time       `json:"opened_at"`
-	CompletedAt *time.Time      `json:"completed_at,omitempty"`
-	Required    int             `json:"required"`
-	Solved      int             `json:"solved"`
-	Answers     []answerSlotDTO `json:"answers"`
-	Hints       []hintDTO       `json:"hints"`
-	Bonuses     []bonusDTO      `json:"bonuses,omitempty"`
-	Location    *locationDTO    `json:"location,omitempty"` // слив локации, если есть в сценарии
-	Skip        *penaltyDTO     `json:"skip,omitempty"`     // слив уровня, если есть в сценарии
-	Skipped     bool            `json:"skipped,omitempty"`  // уровень слит
+	ID          string             `json:"id"`
+	Title       string             `json:"title"`
+	Task        string             `json:"task"`
+	Media       []string           `json:"media,omitempty"`
+	Points      int                `json:"points"`
+	Open        bool               `json:"open"`
+	OpenedAt    time.Time          `json:"opened_at"`
+	CompletedAt *time.Time         `json:"completed_at,omitempty"`
+	Required    int                `json:"required"`
+	Solved      int                `json:"solved"`
+	Answers     []answerSlotDTO    `json:"answers"`
+	Hints       []hintDTO          `json:"hints"`
+	Bonuses     []bonusDTO         `json:"bonuses,omitempty"`
+	Location    *locationDTO       `json:"location,omitempty"`   // слив локации, если есть в сценарии
+	Skip        *penaltyDTO        `json:"skip,omitempty"`       // слив уровня, если есть в сценарии
+	Skipped     bool               `json:"skipped,omitempty"`    // уровень слит
+	RateLimit   *levelRateLimitDTO `json:"rate_limit,omitempty"` // своя защита от перебора
+}
+
+// levelRateLimitDTO — правило защиты уровня и текущая блокировка.
+type levelRateLimitDTO struct {
+	WrongAnswers  int        `json:"wrong_answers"`
+	PerSec        int64      `json:"per_sec"`
+	Action        string     `json:"action"` // block | penalty
+	BlockSec      int64      `json:"block_sec,omitempty"`
+	PenaltySec    int64      `json:"penalty_sec,omitempty"`
+	PenaltyPoints int        `json:"penalty_points,omitempty"`
+	Wrong         int        `json:"wrong"`                   // неверных кодов в текущем окне
+	BlockedUntil  *time.Time `json:"blocked_until,omitempty"` // block: ввод закрыт до
+}
+
+func levelRateLimitView(rl *scenario.RateLimit, ls *core.LevelState) *levelRateLimitDTO {
+	if rl == nil {
+		return nil
+	}
+	d := &levelRateLimitDTO{WrongAnswers: rl.WrongAnswers, PerSec: int64(rl.Per.D() / time.Second), Action: string(rl.Action)}
+	if rl.Action == scenario.RateLimitBlock {
+		d.BlockSec = int64(rl.BlockDuration() / time.Second)
+	} else {
+		pen := penaltyView(rl.Penalty)
+		d.PenaltySec, d.PenaltyPoints = pen.PenaltySec, pen.PenaltyPoints
+	}
+	if ls != nil {
+		d.Wrong = len(ls.Wrong)
+		if ls.IsOpen() {
+			d.BlockedUntil = timePtr(ls.BlockedUntil)
+		}
+	}
+	return d
 }
 
 type penaltyDTO struct {
@@ -145,6 +178,7 @@ func levelView(sl *scenario.Level, ls *core.LevelState, team *core.Team) levelDT
 		Open: ls.IsOpen(), OpenedAt: ls.OpenedAt, CompletedAt: timePtr(ls.CompletedAt),
 		Required: sl.Require.Needed(len(sl.Answers)), Solved: ls.SolvedCount(),
 		Answers: []answerSlotDTO{}, Hints: []hintDTO{}, Skipped: ls.Skipped,
+		RateLimit: levelRateLimitView(sl.RateLimit, ls),
 	}
 	if sl.Location != nil {
 		loc := &locationDTO{penaltyDTO: penaltyView(sl.Location.Penalty), Revealed: ls.LocationRevealed}
@@ -291,6 +325,8 @@ func ledgerView(g *core.Game, team *core.Team) []scoreItemDTO {
 			it.Title = "Слив локации — «" + title(e.LevelID) + "»"
 		case "skip":
 			it.Title = "Слив уровня — «" + title(e.LevelID) + "»"
+		case "rate_limit":
+			it.Title = "Перебор кодов — «" + title(e.LevelID) + "»"
 		}
 		out = append(out, it)
 	}

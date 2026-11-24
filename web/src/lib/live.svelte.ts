@@ -2,6 +2,7 @@
 // отправка ответов и всплывающие сообщения.
 
 import { api, ApiError, isNetworkError, type AnswerBody, type AnswerResult, type PlayerState, type Result } from './api'
+import { countdown, minutes, points } from './format'
 import { compressImage } from './image'
 import { flush, newId, outbox, send, type Delivery, type OutboxItem } from './outbox'
 import { saveVKUrl } from './transfer'
@@ -231,6 +232,15 @@ export class Live {
   }
 
   private announce(r: AnswerResult) {
+    const rl = r.rate_limit
+    if (rl) {
+      const text =
+        rl.action === 'block'
+          ? `Неверно. Слишком много неверных кодов — ввод закрыт на ${countdown((Date.parse(rl.until!) - Date.now()) / 1000)}`
+          : `Неверно. Перебор кодов: штраф ${rl.penalty_sec ? '+' + minutes(rl.penalty_sec) : '−' + points(rl.penalty_points ?? 0)}`
+      this.toast('bad', text, 7000)
+      return
+    }
     const [kind, text] = RESULT[r.result]
     this.toast(kind, text, r.result === 'inaccurate' ? 6000 : 3500)
     if (navigator.vibrate && r.result === 'correct') navigator.vibrate(80)

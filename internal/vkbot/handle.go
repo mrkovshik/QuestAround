@@ -2,6 +2,7 @@ package vkbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -468,6 +469,12 @@ func (b *Bot) answer(ctx context.Context, user int64, s *session, m Message, cmd
 	cmd.ClientEventID = "vk-" + strconv.FormatInt(m.ID, 10) // Long Poll может прислать повтор
 	res, err := s.rn.Do(ctx, cmd)
 	if err != nil {
+		if errors.Is(err, core.ErrRateLimited) {
+			if until := b.blockedUntil(ctx, s); !until.IsZero() {
+				b.reply(ctx, user, "⛔ Слишком много неверных кодов — ввод на этом задании закрыт до "+b.clock(until)+".")
+				return
+			}
+		}
 		b.reply(ctx, user, "⚠️ "+humanErr(err)+".")
 		return
 	}
@@ -499,6 +506,13 @@ func (b *Bot) answer(ctx context.Context, user int64, s *session, m Message, cmd
 		if geo {
 			text = "❌ Не то место — до точки ещё далеко."
 		}
+		if h := a.RateLimit; h != nil {
+			if h.Action == scenario.RateLimitBlock {
+				text += " Слишком много неверных кодов — ввод на этом задании закрыт до " + b.clock(h.Until) + "."
+			} else {
+				text += " Перебор кодов: " + penaltyText(h.PenaltyTime, h.PenaltyPoints) + "."
+			}
+		}
 	case core.ResultDuplicate:
 		text = "Этот ответ уже засчитан."
 	case core.ResultPending:
@@ -509,6 +523,22 @@ func (b *Bot) answer(ctx context.Context, user int64, s *session, m Message, cmd
 		return
 	}
 	b.reply(ctx, user, text)
+}
+
+// blockedUntil — до какого времени закрыт ввод кодов на открытом уровне команды (своя защита уровня).
+func (b *Bot) blockedUntil(ctx context.Context, s *session) time.Time {
+	var until time.Time
+	_ = s.rn.Read(ctx, func(g *core.Game) {
+		for _, ls := range g.Teams[s.teamID].Levels {
+			if ls.IsOpen() && ls.BlockedUntil.After(until) {
+				until = ls.BlockedUntil
+			}
+		}
+	})
+	if until.Before(time.Now()) {
+		return time.Time{}
+	}
+	return until
 }
 
 // do выполняет команду игрока; ok — текст при успехе (пусто — промолчать:

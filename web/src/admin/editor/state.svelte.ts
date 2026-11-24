@@ -4,7 +4,7 @@ import { getContext, setContext } from 'svelte'
 import type { AdminApi, Asset, ScenarioIssue } from '../adminApi'
 import { DEFAULTS, emptyDraft, type Draft, type FlowMode, type ScoringMode } from './model'
 
-export type View = 'settings' | 'routes' | 'yaml' | number // число — индекс уровня
+export type View = 'settings' | 'routes' | 'schedule' | 'yaml' | number // число — индекс уровня
 
 export class EditorState {
   draft = $state<Draft>(emptyDraft())

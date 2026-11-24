@@ -22,6 +22,17 @@
       .sort((a, b) => Date.parse(a.opens_at!) - Date.parse(b.opens_at!))[0],
   )
   const locWait = $derived(left(level.location?.available_at))
+  const rl = $derived(level.rate_limit)
+  const blockedFor = $derived(left(rl?.blocked_until))
+  const rlRule = $derived.by(() => {
+    if (!rl) return ''
+    const per = rl.per_sec >= 60 ? minutes(rl.per_sec) : `${rl.per_sec} сек`
+    const then =
+      rl.action === 'block'
+        ? `ввод закрывается на ${minutes(rl.block_sec ?? rl.per_sec)}`
+        : `штраф ${rl.penalty_sec ? '+' + minutes(rl.penalty_sec) : '−' + points(rl.penalty_points ?? 0)}`
+    return `${rl.wrong_answers} неверных кодов за ${per} — ${then}`
+  })
   const skipWait = $derived(left(level.skip?.available_at))
 
   let texts = $state<Record<string, string>>({})
@@ -83,6 +94,14 @@
       <span class="badge">{points(level.points)}</span>
     {/if}
   </header>
+
+  {#if active && rl}
+    {#if blockedFor > 0}
+      <div class="rl blocked">⛔ Слишком много неверных кодов — ввод закрыт ещё {countdown(blockedFor)}</div>
+    {:else}
+      <div class="rl muted small">Защита от перебора: {rlRule}</div>
+    {/if}
+  {/if}
 
   {#if sectors && level.open}
     <div class="progress" aria-label="Найдено ответов">
@@ -280,6 +299,16 @@
   .choices {
     display: grid;
     gap: 0.5rem;
+  }
+  .rl {
+    margin: 0.25rem 0 0.5rem;
+  }
+  .rl.blocked {
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    background: var(--bad-soft);
+    color: var(--bad);
+    font-weight: 600;
   }
   .free {
     margin-top: 0.25rem;

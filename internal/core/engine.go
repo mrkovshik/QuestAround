@@ -246,15 +246,19 @@ func (g *Game) submit(t *tx, c SubmitAnswer) (*AnswerResult, error) {
 		if strings.TrimSpace(c.Value) == "" {
 			return nil, ErrEmptyAnswer
 		}
-		if g.rateLimited(team, t.now) {
-			return nil, ErrRateLimited
-		}
 		levels, err := g.candidateLevels(team, c.LevelID)
 		if err != nil {
 			return nil, err
 		}
+		target := g.codeLevel(team, levels)
+		if !c.ByHost && g.codeBlocked(team, target, t.now) {
+			return nil, ErrRateLimited
+		}
 		p.Value = c.Value
 		g.matchCode(team, levels, c.Value, &p)
+		if p.Result == ResultWrong && p.LevelID == "" {
+			p.LevelID = target // ошибка засчитывается единственному открытому уровню
+		}
 
 	case KindGeo:
 		levels, err := g.candidateLevels(team, c.LevelID)
@@ -273,8 +277,15 @@ func (g *Game) submit(t *tx, c SubmitAnswer) (*AnswerResult, error) {
 		return nil, ErrBadCommand
 	}
 
-	e := t.emit(team.ID, c.PlayerID, c.ClientEventID, p)
+	playerID := c.PlayerID
+	if c.ByHost {
+		playerID = hostPlayerID
+	}
+	e := t.emit(team.ID, playerID, c.ClientEventID, p)
 	res := AnswerResult{Seq: e.Seq, Result: p.Result, LevelID: p.LevelID, AnswerIdx: p.AnswerIdx, BonusID: p.BonusID}
+	if p.Result == ResultWrong && p.Kind == KindCode && !c.ByHost {
+		res.RateLimit = g.checkLevelLimit(t, team, p.LevelID)
+	}
 
 	if p.Result == ResultCorrect {
 		if p.AnswerIdx != nil {

@@ -61,6 +61,26 @@ export interface Level {
   location?: LevelLocation
   skip?: Penalty
   skipped?: boolean
+  rate_limit?: LevelRateLimit
+}
+
+/** Своя защита уровня от перебора кодов. */
+export interface LevelRateLimit {
+  wrong_answers: number
+  per_sec: number
+  action: 'block' | 'penalty'
+  block_sec?: number
+  penalty_sec?: number
+  penalty_points?: number
+  wrong: number // неверных кодов в текущем окне
+  blocked_until?: string
+}
+
+export interface RateLimitHit {
+  action: 'block' | 'penalty'
+  until?: string
+  penalty_sec?: number
+  penalty_points?: number
 }
 
 export interface Player {
@@ -198,6 +218,7 @@ export interface AnswerResult {
   level_id?: string
   answer_idx?: number
   bonus_id?: string
+  rate_limit?: RateLimitHit // этот неверный код включил защиту уровня
 }
 
 export interface Standing {

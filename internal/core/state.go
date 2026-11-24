@@ -195,6 +195,10 @@ type LevelState struct {
 
 	LocationRevealed bool // слита локация
 	Skipped          bool // уровень слит
+
+	// Своя защита уровня от перебора (rate_limit у уровня).
+	Wrong        []time.Time // неверные коды в текущем окне; сбрасываются при срабатывании
+	BlockedUntil time.Time   // action: block — ввод кодов закрыт до этого времени
 }
 
 func (l *LevelState) IsOpen() bool { return l != nil && l.CompletedAt.IsZero() }
@@ -230,6 +234,7 @@ type AnswerResult struct {
 	LevelID   string
 	AnswerIdx *int
 	BonusID   string
+	RateLimit *RateLimitHit // этот неверный код включил защиту уровня
 }
 
 // NewGame создаёт пустую игру по провалидированному сценарию.
@@ -276,7 +281,7 @@ func Replay(runID string, sc *scenario.Scenario, seed uint64, events []Event) *G
 // события — уже свершившиеся факты, проверки делаются при их создании.
 func (g *Game) Apply(e Event) {
 	g.seq = e.Seq
-	if g.applyComms(e) || g.applySliv(e) {
+	if g.applyComms(e) || g.applySliv(e) || g.applyRateLimit(e) {
 		return
 	}
 	t := g.Teams[e.TeamID]
@@ -386,8 +391,9 @@ func (g *Game) Apply(e Event) {
 			}
 			// бонус засчитывается отдельным событием bonus_completed
 		case ResultWrong:
-			if p.Kind == KindCode {
+			if p.Kind == KindCode && e.PlayerID != hostPlayerID {
 				t.wrongAttempts = append(t.wrongAttempts, e.At)
+				g.countLevelWrong(t, p.LevelID, e.At)
 			}
 		case ResultPending:
 			item := &PendingItem{

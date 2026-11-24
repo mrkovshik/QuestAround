@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"questaround/internal/core"
 	"questaround/internal/runner"
@@ -169,15 +170,29 @@ func (s *Server) state(w http.ResponseWriter, r *http.Request, p *player) {
 }
 
 type answerResultDTO struct {
-	Seq       int64  `json:"seq"`
-	Result    string `json:"result"`
-	LevelID   string `json:"level_id,omitempty"`
-	AnswerIdx *int   `json:"answer_idx,omitempty"`
-	BonusID   string `json:"bonus_id,omitempty"`
+	Seq       int64            `json:"seq"`
+	Result    string           `json:"result"`
+	LevelID   string           `json:"level_id,omitempty"`
+	AnswerIdx *int             `json:"answer_idx,omitempty"`
+	BonusID   string           `json:"bonus_id,omitempty"`
+	RateLimit *rateLimitHitDTO `json:"rate_limit,omitempty"` // этот код включил защиту уровня
+}
+
+// rateLimitHitDTO — сработала защита уровня от перебора.
+type rateLimitHitDTO struct {
+	Action        string     `json:"action"`          // block | penalty
+	Until         *time.Time `json:"until,omitempty"` // block: ввод закрыт до
+	PenaltySec    int64      `json:"penalty_sec,omitempty"`
+	PenaltyPoints int        `json:"penalty_points,omitempty"`
 }
 
 func answerDTO(a *core.AnswerResult) answerResultDTO {
-	return answerResultDTO{Seq: a.Seq, Result: string(a.Result), LevelID: a.LevelID, AnswerIdx: a.AnswerIdx, BonusID: a.BonusID}
+	d := answerResultDTO{Seq: a.Seq, Result: string(a.Result), LevelID: a.LevelID, AnswerIdx: a.AnswerIdx, BonusID: a.BonusID}
+	if h := a.RateLimit; h != nil {
+		d.RateLimit = &rateLimitHitDTO{Action: string(h.Action), Until: timePtr(h.Until),
+			PenaltySec: int64(h.PenaltyTime / time.Second), PenaltyPoints: h.PenaltyPoints}
+	}
+	return d
 }
 
 type answerRequest struct {
