@@ -147,6 +147,9 @@
     <Field label="Задание" path="{P}.task" wide>
       <textarea rows="5" bind:value={level.task} placeholder="Что нужно найти или сделать"></textarea>
     </Field>
+    <Field label="Заметки для организаторов" path="{P}.host_notes" wide hint="Игроки не видят. Где спрятан конверт, кто стоит на точке, что проверить перед игрой">
+      <textarea class="notes" rows="2" bind:value={level.host_notes}></textarea>
+    </Field>
     <Field label="Картинки к заданию" path="{P}.media" wide>
       <MediaPicker bind:value={level.media} />
     </Field>
@@ -340,6 +343,9 @@
   }
   .head h2 {
     margin: 0;
+  }
+  .notes {
+    background: var(--warn-soft);
   }
   .del {
     color: var(--bad);

@@ -45,6 +45,7 @@ with sync_playwright() as p:
     # --- настройки ---
     ed.locator(".nav", has_text="Настройки игры").click()
     ed.locator("[data-path='title'] input").fill("Тест конструктора")
+    ed.locator("[data-path='host_notes'] textarea").fill("Сбор в 10:00 у фонтана")
     expect(ed.locator("[data-path='id'] input")).to_have_value("test-konstruktora")
     ed.locator("[data-path='flow.routes'] select").select_option("rotate")
 
@@ -54,6 +55,7 @@ with sync_playwright() as p:
     lvl.locator("[data-path='levels[0].title'] input").fill("Сбор")
     lvl.locator("[data-path='levels[0].id'] input").fill("start")
     lvl.locator("[data-path='levels[0].task'] textarea").fill("Найдите год на табличке")
+    lvl.locator("[data-path='levels[0].host_notes'] textarea").fill("Табличку проверить утром")
     lvl.locator("[data-path='levels[0].answers[0].values'] textarea").fill("1864")
     lvl.locator("[data-path='levels[0].pin'] select").select_option("first")
     # подсказка: по запросу со штрафом и сама через 20 минут
@@ -146,7 +148,7 @@ with sync_playwright() as p:
     sk = first.locator("[data-path='levels[0].skip'] input")
     sk.fill("50")
     sk.blur()
-    expect(sched.locator(".tl")).to_contain_text("50 мин 1. Сбор — слив уровня")
+    expect(sched.locator(".tl")).to_have_count(0)
     page.screenshot(path=f"{SHOTS}/e03a-schedule.png", full_page=True)
     sched.locator("tbody tr").first.locator("button.link").click()
     expect(lvl.locator("[data-path='levels[0].skip.available_after'] input")).to_have_value("50m")
@@ -195,7 +197,7 @@ with sync_playwright() as p:
     # --- YAML ---
     ed.locator(".nav", has_text="YAML").click()
     src = ed.locator(".yaml textarea").input_value()
-    for want in ["id: test-konstruktora", "routes: rotate", "pin: first", "point: [44.6338, 39.1352]",
+    for want in ["id: test-konstruktora", "host_notes: Сбор в 10:00 у фонтана", "    host_notes: Табличку проверить утром", "routes: rotate", "pin: first", "point: [44.6338, 39.1352]",
                  "on_request: true", "after: 20m", "after: 0", "penalty: {time: 10m}",
                  "    location:\n      text: Главный вход в парк\n      penalty: {time: 15m}",
                  "    skip:\n      penalty: {time: 30m}\n      available_after: 50m",
@@ -208,6 +210,9 @@ with sync_playwright() as p:
         ed.locator("button", has_text="Тестовая игра").click()
     run = newp.value
     expect(run.locator("h1")).to_contain_text("Тест конструктора — тест")
+    notes = run.locator("details.notes")
+    expect(notes).to_contain_text("Сбор в 10:00 у фонтана")
+    expect(notes).to_contain_text("Сбор: Табличку проверить утром")
 
     # --- в списке сценариев ---
     page.goto(BASE + "/admin")

@@ -25,33 +25,9 @@
     return h.after?.trim() ? 'сама' : 'сама, по расписанию'
   }
 
-  function fmtMin(min: number): string {
-    if (min <= 0) return 'сразу'
-    const h = Math.floor(min / 60)
-    const m = Math.round(min % 60)
-    return [h && `${h} ч`, m && `${m} мин`].filter(Boolean).join(' ') || '< 1 мин'
-  }
-
   const bad = (path: string) => ed.count(path) > 0
   const human = (v?: string) => (v && !isZeroDur(v) ? humanDuration(v) || v : '')
 
-  // Сводная лента: что и когда становится доступно (для проверки, что всё не сваливается в одну минуту).
-  const timeline = $derived.by(() => {
-    const toMin = (v?: string) => {
-      const m = v?.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/)
-      return m ? Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) + Number(m[3] ?? 0) / 60 : NaN
-    }
-    const rows: { min: number; text: string }[] = []
-    d.levels.forEach((l, li) => {
-      ;(l.hints ?? []).forEach((h, i) => {
-        const at = autoAt(l, h, i)
-        if (at) rows.push({ min: toMin(at), text: `${li + 1}. ${l.title || l.id} — подсказка ${i + 1}` })
-      })
-      if (l.location) rows.push({ min: toMin(l.location.available_after || '0m'), text: `${li + 1}. ${l.title || l.id} — слив локации` })
-      if (l.skip) rows.push({ min: toMin(l.skip.available_after || '0m'), text: `${li + 1}. ${l.title || l.id} — слив уровня` })
-    })
-    return rows.filter((r) => Number.isFinite(r.min)).sort((a, b) => a.min - b.min)
-  })
 </script>
 
 <div class="sched">
@@ -127,16 +103,6 @@
       </table>
     </div>
 
-    {#if timeline.length}
-      <section class="card">
-        <h3>По времени от открытия уровня</h3>
-        <ul class="tl">
-          {#each timeline as r, k (k)}
-            <li><span class="t mono">{fmtMin(r.min)}</span> {r.text}</li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
   {/if}
 </div>
 
@@ -185,17 +151,5 @@
   }
   .tag.off {
     color: var(--bad);
-  }
-  .tl {
-    list-style: none;
-    margin: 0.5rem 0 0;
-    padding: 0;
-    display: grid;
-    gap: 0.25rem;
-  }
-  .t {
-    display: inline-block;
-    min-width: 6rem;
-    color: var(--muted);
   }
 </style>

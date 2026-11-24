@@ -25,6 +25,16 @@ type scenarioVersionDTO struct {
 	Title     string    `json:"title"`
 	CreatedAt time.Time `json:"created_at"`
 	Source    string    `json:"source,omitempty"`
+
+	// Заметки организаторам — только в админке (GET /scenarios/{id}).
+	HostNotes  string         `json:"host_notes,omitempty"`
+	LevelNotes []levelNoteDTO `json:"level_notes,omitempty"`
+}
+
+type levelNoteDTO struct {
+	LevelID string `json:"level_id"`
+	Title   string `json:"title"`
+	Notes   string `json:"notes"`
 }
 
 // uploadScenario: тело — YAML. Невалидный сценарий → 422 со списком ошибок по строкам.
@@ -66,6 +76,12 @@ func (s *Server) getScenario(w http.ResponseWriter, r *http.Request) {
 	d := scenarioVersionDTO{ID: sv.ID, Slug: sv.Slug, Version: sv.Version, CreatedAt: sv.CreatedAt, Source: sv.Source}
 	if sc, err := scenario.Parse([]byte(sv.Source)); err == nil {
 		d.Title = sc.Title
+		d.HostNotes = strings.TrimSpace(sc.HostNotes)
+		for _, l := range sc.Levels {
+			if n := strings.TrimSpace(l.HostNotes); n != "" {
+				d.LevelNotes = append(d.LevelNotes, levelNoteDTO{LevelID: l.ID, Title: l.Title, Notes: n})
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, d)
 }

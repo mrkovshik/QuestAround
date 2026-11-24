@@ -51,8 +51,11 @@
     >
       <input class="mono" class:bad={!!d.id && !ID_RE.test(d.id)} bind:value={d.id} oninput={() => (idTouched = true)} />
     </Field>
-    <Field label="Описание (для ведущего)" path="description" wide>
+    <Field label="Описание игры" path="description" wide hint="Видят игроки — на странице регистрации и в VK-боте">
       <textarea rows="2" bind:value={d.description}></textarea>
+    </Field>
+    <Field label="Заметки для организаторов" path="host_notes" wide hint="Игроки не видят. Показываются ведущему на странице игры">
+      <textarea class="notes" rows="4" bind:value={d.host_notes} placeholder="Сбор в 10:00 у фонтана; конверты раскладывает Петя; телефон скорой…"></textarea>
     </Field>
   </section>
 
@@ -214,6 +217,9 @@
 <style>
   .settings {
     max-width: 920px;
+  }
+  .notes {
+    background: var(--warn-soft);
   }
   .chips {
     display: flex;

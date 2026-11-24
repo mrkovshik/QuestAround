@@ -85,6 +85,19 @@
       <button class="secondary small" disabled={!pick} onclick={change}>Заменить</button>
     {/if}
   </div>
+  {#if current?.host_notes || current?.level_notes?.length}
+    <details class="notes" open>
+      <summary>Заметки для организаторов</summary>
+      {#if current.host_notes}<p class="txt">{current.host_notes}</p>{/if}
+      {#if current.level_notes?.length}
+        <ul>
+          {#each current.level_notes as n (n.level_id)}
+            <li><strong>{n.title || n.level_id}:</strong> <span class="txt">{n.notes}</span></li>
+          {/each}
+        </ul>
+      {/if}
+    </details>
+  {/if}
   {#if pending}
     <p class="muted small hint">
       До старта сценарий можно заменить на любой: загрузите исправленный YAML на странице игр, затем выберите новую версию здесь. Код
@@ -116,6 +129,26 @@
     margin-top: 0.9rem;
     padding-top: 0.75rem;
     border-top: 1px solid var(--line);
+  }
+  .notes {
+    margin: 0.6rem 0 0.2rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 10px;
+    background: var(--warn-soft);
+  }
+  .notes summary {
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .notes .txt {
+    white-space: pre-wrap;
+  }
+  .notes p {
+    margin: 0.4rem 0 0;
+  }
+  .notes ul {
+    margin: 0.4rem 0 0;
+    padding-left: 1.1rem;
   }
   .hint {
     margin: 0.35rem 0 0;

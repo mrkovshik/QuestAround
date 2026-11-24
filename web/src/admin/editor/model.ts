@@ -56,6 +56,7 @@ export interface Unlock {
 export interface Level {
   id: string
   title?: string
+  host_notes?: string
   task?: string
   media?: string[]
   points?: number | null
@@ -77,6 +78,7 @@ export interface Draft {
   id: string
   title: string
   description?: string
+  host_notes?: string
   participants: { mode?: 'team' | 'solo'; team_size?: { min?: number | null; max?: number | null }; hint_requests?: string; [k: string]: unknown }
   timing: { mode?: string; time_limit?: string; [k: string]: unknown }
   start: { mode?: string; interval?: string; order?: string; [k: string]: unknown }
@@ -195,8 +197,8 @@ export function toYaml(d: Draft): string {
 }
 
 // Порядок ключей верхнего уровня — как в документации.
-const TOP = ['version', 'id', 'title', 'description', 'participants', 'timing', 'start', 'flow', 'scoring', 'leaderboard', 'defaults', 'levels']
-const LEVEL = ['id', 'pin', 'chain', 'title', 'task', 'media', 'points', 'require', 'unlock', 'answers', 'hints', 'location', 'skip', 'rate_limit', 'bonuses']
+const TOP = ['version', 'id', 'title', 'description', 'host_notes', 'participants', 'timing', 'start', 'flow', 'scoring', 'leaderboard', 'defaults', 'levels']
+const LEVEL = ['id', 'pin', 'chain', 'title', 'host_notes', 'task', 'media', 'points', 'require', 'unlock', 'answers', 'hints', 'location', 'skip', 'rate_limit', 'bonuses']
 
 function order(d: Draft): Record<string, unknown> {
   const out: Record<string, unknown> = {}

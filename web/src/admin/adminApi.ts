@@ -19,6 +19,8 @@ export interface ScenarioVersion {
   title?: string
   created_at: string
   source?: string
+  host_notes?: string // заметки организаторам — только в админке
+  level_notes?: { level_id: string; title: string; notes: string }[]
 }
 
 export interface TrashedRun {

@@ -12,10 +12,12 @@ import (
 const SchemaVersion = 1
 
 type Scenario struct {
-	Version      int          `yaml:"version"`
-	ID           string       `yaml:"id"`
-	Title        string       `yaml:"title"`
-	Description  string       `yaml:"description"`
+	Version     int    `yaml:"version"`
+	ID          string `yaml:"id"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	// HostNotes — инструкции и заметки для организаторов. Игрокам не отдаётся.
+	HostNotes    string       `yaml:"host_notes"`
 	Participants Participants `yaml:"participants"`
 	Timing       Timing       `yaml:"timing"`
 	Start        Start        `yaml:"start"`
@@ -178,16 +180,18 @@ func (r *RateLimit) BlockDuration() time.Duration {
 // --- уровни ---
 
 type Level struct {
-	ID      string     `yaml:"id"`
-	Title   string     `yaml:"title"`
-	Task    string     `yaml:"task"`
-	Media   []string   `yaml:"media"`
-	Points  int        `yaml:"points"`
-	Pin     routes.Pin `yaml:"pin"`
-	Chain   string     `yaml:"chain"`
-	Require Require    `yaml:"require"` // сколько ответов нужно для зачёта
-	Answers []Answer   `yaml:"answers"`
-	Hints   []Hint     `yaml:"hints"`
+	ID    string `yaml:"id"`
+	Title string `yaml:"title"`
+	// HostNotes — заметки организаторам по уровню (где конверт, кто стоит на точке). Игрокам не отдаётся.
+	HostNotes string     `yaml:"host_notes"`
+	Task      string     `yaml:"task"`
+	Media     []string   `yaml:"media"`
+	Points    int        `yaml:"points"`
+	Pin       routes.Pin `yaml:"pin"`
+	Chain     string     `yaml:"chain"`
+	Require   Require    `yaml:"require"` // сколько ответов нужно для зачёта
+	Answers   []Answer   `yaml:"answers"`
+	Hints     []Hint     `yaml:"hints"`
 	// Location — «слив локации»: капитан может получить место (адрес и/или точку) со штрафом.
 	Location *Location `yaml:"location"`
 	// Skip — «слив уровня»: капитан может засчитать уровень без ответа со штрафом.
