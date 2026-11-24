@@ -46,6 +46,7 @@ with sync_playwright() as p:
     ed.locator(".nav", has_text="Настройки игры").click()
     ed.locator("[data-path='title'] input").fill("Тест конструктора")
     ed.locator("[data-path='host_notes'] textarea").fill("Сбор в 10:00 у фонтана")
+    expect(ed.locator("[data-path='host_notes'] textarea")).to_have_css("position", "static")
     expect(ed.locator("[data-path='id'] input")).to_have_value("test-konstruktora")
     ed.locator("[data-path='flow.routes'] select").select_option("rotate")
 
@@ -56,6 +57,9 @@ with sync_playwright() as p:
     lvl.locator("[data-path='levels[0].id'] input").fill("start")
     lvl.locator("[data-path='levels[0].task'] textarea").fill("Найдите год на табличке")
     lvl.locator("[data-path='levels[0].host_notes'] textarea").fill("Табличку проверить утром")
+    # поле стоит в форме уровня, а не уезжает к всплывающим уведомлениям (.admin .notes — position: fixed)
+    expect(lvl.locator("[data-path='levels[0].host_notes'] textarea")).to_have_css("position", "static")
+    expect(ed.locator("[data-path='host_notes'] textarea")).to_have_count(0)
     lvl.locator("[data-path='levels[0].answers[0].values'] textarea").fill("1864")
     lvl.locator("[data-path='levels[0].pin'] select").select_option("first")
     # подсказка: по запросу со штрафом и сама через 20 минут
@@ -210,7 +214,7 @@ with sync_playwright() as p:
         ed.locator("button", has_text="Тестовая игра").click()
     run = newp.value
     expect(run.locator("h1")).to_contain_text("Тест конструктора — тест")
-    notes = run.locator("details.notes")
+    notes = run.locator("details.host-notes")
     expect(notes).to_contain_text("Сбор в 10:00 у фонтана")
     expect(notes).to_contain_text("Сбор: Табличку проверить утром")
 

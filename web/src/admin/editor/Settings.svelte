@@ -55,7 +55,7 @@
       <textarea rows="2" bind:value={d.description}></textarea>
     </Field>
     <Field label="Заметки для организаторов" path="host_notes" wide hint="Игроки не видят. Показываются ведущему на странице игры">
-      <textarea class="notes" rows="4" bind:value={d.host_notes} placeholder="Сбор в 10:00 у фонтана; конверты раскладывает Петя; телефон скорой…"></textarea>
+      <textarea class="host-notes" rows="4" bind:value={d.host_notes} placeholder="Сбор в 10:00 у фонтана; конверты раскладывает Петя; телефон скорой…"></textarea>
     </Field>
   </section>
 
@@ -218,7 +218,7 @@
   .settings {
     max-width: 920px;
   }
-  .notes {
+  .host-notes {
     background: var(--warn-soft);
   }
   .chips {

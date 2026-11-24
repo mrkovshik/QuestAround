@@ -86,7 +86,7 @@
     {/if}
   </div>
   {#if current?.host_notes || current?.level_notes?.length}
-    <details class="notes" open>
+    <details class="host-notes" open>
       <summary>Заметки для организаторов</summary>
       {#if current.host_notes}<p class="txt">{current.host_notes}</p>{/if}
       {#if current.level_notes?.length}
@@ -130,23 +130,23 @@
     padding-top: 0.75rem;
     border-top: 1px solid var(--line);
   }
-  .notes {
+  .host-notes {
     margin: 0.6rem 0 0.2rem;
     padding: 0.6rem 0.8rem;
     border-radius: 10px;
     background: var(--warn-soft);
   }
-  .notes summary {
+  .host-notes summary {
     font-weight: 600;
     cursor: pointer;
   }
-  .notes .txt {
+  .host-notes .txt {
     white-space: pre-wrap;
   }
-  .notes p {
+  .host-notes p {
     margin: 0.4rem 0 0;
   }
-  .notes ul {
+  .host-notes ul {
     margin: 0.4rem 0 0;
     padding-left: 1.1rem;
   }
