@@ -66,6 +66,7 @@ type Bot struct {
 	modes    map[int64]mode
 	watching map[string]bool
 	photos   map[string]string // ключ медиа → вложение VK
+	cities   map[int64]string  // выбранный город в «Доступных играх»
 	runCtx   context.Context
 	wg       sync.WaitGroup
 }
@@ -92,6 +93,7 @@ func New(cfg Config) *Bot {
 		modes:    map[int64]mode{},
 		watching: map[string]bool{},
 		photos:   map[string]string{},
+		cities:   map[int64]string{},
 	}
 }
 

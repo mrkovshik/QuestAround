@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"questaround/internal/core"
+	"questaround/internal/store"
 )
 
 const carol = int64(303)
@@ -23,11 +24,16 @@ func TestRegistrationInVK(t *testing.T) {
 		t.Fatal("у гостя нет кнопки «Доступные игры»")
 	}
 
+	// Скрытую (по умолчанию) игру в списке не видно.
+	expect(t, h.msg(alice, labelGames, withPayload(payload{Cmd: cmdGames})), "нет игр")
+	h.do(core.SetListing{City: "Горячий Ключ", Listed: true})
+
 	// Список игр → карточка игры.
 	got = h.msg(alice, labelGames, withPayload(payload{Cmd: cmdGames}))
+	expect(t, got, "Доступные игры — Горячий Ключ")
 	expect(t, got, "«Пилот» — регистрация открыта, команд: 1")
 	card := h.msg(alice, "", withPayload(findButton(t, got, "Пилот")))
-	expect(t, card, "Команды:", "«Ёжики» — игроков: 0 из 3", "код приглашения")
+	expect(t, card, "📍 Горячий Ключ", "Команды:", "«Ёжики» — игроков: 0 из 3", "код приглашения")
 	findButton(t, card, "Вступить в «Ёжики»")
 
 	// Создание команды.
@@ -111,4 +117,44 @@ func TestParseGameLink(t *testing.T) {
 			t.Errorf("%q: %q %v", c.text, code, ok)
 		}
 	}
+}
+
+// Игры в нескольких городах: бот спрашивает город; скрытая игра — только по ссылке.
+func TestGamesByCity(t *testing.T) {
+	h := newHarness(t)
+	h.do(core.SetListing{City: "Горячий Ключ", Listed: true})
+
+	// Вторая игра — в Нови-Саде, третья — тестовая, скрытая.
+	add := func(title string, listing *core.SetListing) store.Run {
+		sv, _ := h.st.SaveScenarioVersion(h.ctx, store.DefaultOrg, "vk2", testYAML)
+		run, err := h.st.CreateRun(h.ctx, store.NewRun{OrgID: store.DefaultOrg, ScenarioVersionID: sv.ID, Title: title})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if listing != nil {
+			rn, _ := h.bot.cfg.Runners.Get(h.ctx, run.ID)
+			if _, err := rn.Do(h.ctx, *listing); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return run
+	}
+	add("Нови-Сад: старт", &core.SetListing{City: "Нови-Сад", Listed: true})
+	test := add("Тест", nil)
+
+	got := h.msg(alice, "", withPayload(payload{Cmd: cmdGames}))
+	expect(t, got, "В каком вы городе?")
+	ns := findButton(t, got, "Нови-Сад")
+	got = h.msg(alice, "", withPayload(ns))
+	expect(t, got, "Доступные игры — Нови-Сад", "«Нови-Сад: старт»")
+	if strings.Contains(texts(got), "Пилот") || strings.Contains(texts(got), "Тест") {
+		t.Fatalf("лишние игры:\n%s", texts(got))
+	}
+	// Город запомнен; «Другой город» — снова выбор.
+	expect(t, h.msg(alice, "/игры"), "Доступные игры — Нови-Сад")
+	other := findButton(t, h.msg(alice, "/игры"), "Другой город")
+	expect(t, h.msg(alice, "", withPayload(other)), "В каком вы городе?")
+
+	// Скрытая игра открывается по ссылке.
+	expect(t, h.msg(bob, "https://q.example/g/"+test.PublicCode), "🎲 «Тест»")
 }

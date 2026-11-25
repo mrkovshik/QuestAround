@@ -222,6 +222,18 @@ func (s *Server) setRegistration(w http.ResponseWriter, r *http.Request) {
 	s.command(w, r, core.SetRegistration{Open: req.Open, MaxTeams: req.MaxTeams})
 }
 
+func (s *Server) setListing(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		City   string `json:"city"`
+		Listed bool   `json:"listed"`
+	}
+	if err := readJSON(w, r, &req); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	s.command(w, r, core.SetListing{City: req.City, Listed: req.Listed})
+}
+
 func (s *Server) hostCreateTeam(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name    string `json:"name"`

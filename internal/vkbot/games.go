@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -25,6 +26,9 @@ const (
 	labelGames = "🎲 Доступные игры"
 	labelTeam  = "👥 Команда"
 
+	cmdCity      = "city"
+	cmdCityReset = "city_reset"
+
 	modeTeamName = "team_name" // ждём название новой команды
 	modeTeamCode = "team_code" // ждём код приглашения выбранной команды
 
@@ -40,6 +44,8 @@ func guestKeyboard() *Keyboard {
 type gameInfo struct {
 	run      store.Run
 	title    string
+	city     string
+	listed   bool
 	desc     string
 	status   core.RunStatus
 	regOpen  bool // можно создать новую команду
@@ -59,6 +65,8 @@ func readGame(g *core.Game, run store.Run) gameInfo {
 	gi := gameInfo{
 		run:      run,
 		title:    cmp.Or(run.Title, g.Scenario.Title),
+		city:     g.Listing.City,
+		listed:   g.Listing.Listed,
 		desc:     strings.TrimSpace(g.Scenario.Description),
 		status:   g.Status,
 		solo:     g.Scenario.Participants.Mode == scenario.ParticipantsSolo,
@@ -93,7 +101,7 @@ func (gi gameInfo) statusLine() string {
 	return "регистрация новых команд закрыта — можно вступить в команду"
 }
 
-// availableGames — недавние незавершённые игры.
+// availableGames — недавние незавершённые игры, которые ведущий показал в списке.
 func (b *Bot) availableGames(ctx context.Context) ([]gameInfo, error) {
 	runs, err := b.cfg.Store.ListRuns(ctx, b.cfg.OrgID)
 	if err != nil {
@@ -111,7 +119,7 @@ func (b *Bot) availableGames(ctx context.Context) ([]gameInfo, error) {
 		}
 		var gi gameInfo
 		_ = rn.Read(ctx, func(g *core.Game) { gi = readGame(g, run) })
-		if gi.status == core.RunStatusFinished || (!gi.regOpen && !anyJoinable(gi.teams)) {
+		if !gi.listed || gi.status == core.RunStatusFinished || (!gi.regOpen && !anyJoinable(gi.teams)) {
 			continue
 		}
 		out = append(out, gi)
@@ -139,17 +147,78 @@ func (b *Bot) gamesList(ctx context.Context, user int64) {
 		b.send(ctx, out{peer: user, text: "Сейчас нет игр, в которые можно записаться. Следите за анонсами сообщества!"})
 		return
 	}
+
+	// Город: если игры в нескольких городах — сначала спрашиваем.
+	var cities []string
+	for _, gi := range games {
+		if gi.city != "" && !slices.Contains(cities, gi.city) {
+			cities = append(cities, gi.city)
+		}
+	}
+	slices.Sort(cities)
+	city := b.cityOf(user)
+	if city != "" && !slices.Contains(cities, city) {
+		city = ""
+	}
+	if city == "" && len(cities) > 1 {
+		var rows [][]Button
+		for _, c := range cities {
+			if len(rows) < 6 {
+				rows = append(rows, []Button{textButton(short("📍 "+c, 40), "primary", payload{Cmd: cmdCity, City: c})})
+			}
+		}
+		b.send(ctx, out{peer: user, text: "В каком вы городе?", keyboard: inline(rows...)})
+		return
+	}
+	if city != "" {
+		games = slices.DeleteFunc(games, func(gi gameInfo) bool { return gi.city != "" && gi.city != city })
+	}
+
 	var sb strings.Builder
-	sb.WriteString("🎲 Доступные игры:")
+	sb.WriteString("🎲 Доступные игры")
+	if city != "" {
+		sb.WriteString(" — " + city)
+	} else if len(cities) == 1 {
+		sb.WriteString(" — " + cities[0])
+	}
+	sb.WriteString(":")
 	var rows [][]Button
 	for i, gi := range games {
 		fmt.Fprintf(&sb, "\n\n%d. «%s» — %s", i+1, gi.title, gi.statusLine())
-		if len(rows) < 6 {
+		if len(rows) < 5 {
 			rows = append(rows, []Button{textButton(short(fmt.Sprintf("%d. %s", i+1, gi.title), 40), "primary", payload{Cmd: cmdGame, Run: gi.run.ID})})
 		}
 	}
-	sb.WriteString("\n\nВыберите игру — покажу команды.")
-	b.send(ctx, out{peer: user, text: sb.String(), keyboard: inline(rows...)})
+	if len(games) == 0 {
+		sb.WriteString("\n\nВ этом городе сейчас нет игр.")
+	} else {
+		sb.WriteString("\n\nВыберите игру — покажу команды.")
+	}
+	if len(cities) > 1 {
+		rows = append(rows, []Button{textButton("🌍 Другой город", "secondary", payload{Cmd: cmdCityReset})})
+	}
+	o := out{peer: user, text: sb.String()}
+	if len(rows) > 0 {
+		o.keyboard = inline(rows...)
+	}
+	b.send(ctx, o)
+}
+
+func (b *Bot) cityOf(user int64) string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.cities[user]
+}
+
+// setCity запоминает город пользователя (в памяти: после перезапуска спросим снова).
+func (b *Bot) setCity(user int64, city string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if city == "" {
+		delete(b.cities, user)
+	} else {
+		b.cities[user] = city
+	}
 }
 
 // gameCard — игра с командами и кнопками «Создать команду» / «Вступить».
@@ -169,6 +238,9 @@ func (b *Bot) gameCard(ctx context.Context, user int64, run store.Run) {
 
 	var sb strings.Builder
 	sb.WriteString("🎲 «" + gi.title + "»")
+	if gi.city != "" {
+		sb.WriteString("\n📍 " + gi.city)
+	}
 	if gi.desc != "" {
 		d := gi.desc
 		if utf8.RuneCountInString(d) > 600 {

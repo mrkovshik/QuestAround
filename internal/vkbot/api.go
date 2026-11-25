@@ -398,6 +398,7 @@ type payload struct {
 	Run   string `json:"run,omitempty"`
 	Team  string `json:"team,omitempty"`
 	Bonus string `json:"bonus,omitempty"`
+	City  string `json:"city,omitempty"`
 	// Command — стандартная кнопка «Начать» VK присылает {"command":"start"}.
 	Command string `json:"command,omitempty"`
 }

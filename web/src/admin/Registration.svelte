@@ -22,6 +22,22 @@
     }
   })
 
+  let city = $state('')
+  let listed = $state(false)
+  let seenListing = ''
+  $effect(() => {
+    const key = `${d.listing.city}/${d.listing.listed}`
+    if (key !== seenListing) {
+      seenListing = key
+      city = d.listing.city
+      listed = d.listing.listed
+    }
+  })
+
+  async function saveListing() {
+    await live.act(() => api.setListing(runId, city.trim(), listed), listed ? 'Игра видна в списке игр' : 'Игра скрыта из списка игр')
+  }
+
   let name = $state('')
   let contact = $state('')
   let created = $state<{ name: string; url: string } | null>(null)
@@ -56,6 +72,18 @@
       <button onclick={save}>Сохранить</button>
       <p class="muted small">Ведущему лимит не мешает: команды, добавленные здесь вручную, проходят всегда.</p>
     {/if}
+
+    <h2>Список игр</h2>
+    <label class="row check"><input type="checkbox" bind:checked={listed} /> Показывать в «Доступных играх» VK-бота</label>
+    <div>
+      <label for="city">Город</label>
+      <input id="city" bind:value={city} maxlength="40" placeholder="Например, Горячий Ключ" />
+    </div>
+    <button onclick={saveListing}>Сохранить</button>
+    <p class="muted small">
+      Скрытая игра (например, тестовая) не попадает в общий список, но по ссылке или коду игры доступна как обычно.
+      Если игры есть в нескольких городах, бот сначала спросит город.
+    </p>
   </section>
 
   {#if pending}

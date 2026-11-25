@@ -78,6 +78,7 @@ type Game struct {
 	Results     *Results // утверждённые итоги; nil — ещё не утверждены
 	SOS         []*SOSAlert
 	HostContact string
+	Listing     Listing  // город и видимость в общем списке игр
 	Photos      []*Photo // все фото-ответы по порядку
 
 	seq      int64
@@ -281,7 +282,7 @@ func Replay(runID string, sc *scenario.Scenario, seed uint64, events []Event) *G
 // события — уже свершившиеся факты, проверки делаются при их создании.
 func (g *Game) Apply(e Event) {
 	g.seq = e.Seq
-	if g.applyComms(e) || g.applySliv(e) || g.applyRateLimit(e) {
+	if g.applyComms(e) || g.applySliv(e) || g.applyRateLimit(e) || g.applyListing(e) {
 		return
 	}
 	t := g.Teams[e.TeamID]

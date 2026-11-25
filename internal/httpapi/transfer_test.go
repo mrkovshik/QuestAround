@@ -43,3 +43,22 @@ func TestTransferCodes(t *testing.T) {
 		t.Fatalf("коды при выключенном боте: %v", d.Teams[0].TransferCodes)
 	}
 }
+
+func TestListingEndpoint(t *testing.T) {
+	ts := newTestServer(t)
+	var sv scenarioVersionDTO
+	ts.must(201, "POST", "/admin/v1/scenarios", adminToken, slivYAML).json(t, &sv)
+	var run runDTO
+	ts.must(201, "POST", "/admin/v1/runs", adminToken, map[string]string{"scenario_version_id": sv.ID}).json(t, &run)
+
+	var d dashboardDTO
+	ts.must(200, "GET", "/admin/v1/runs/"+run.ID+"/dashboard", adminToken, nil).json(t, &d)
+	if d.Listing.Listed {
+		t.Fatal("новая игра видна в списке")
+	}
+	ts.must(200, "PUT", "/admin/v1/runs/"+run.ID+"/listing", adminToken, map[string]any{"city": "Нови-Сад", "listed": true})
+	ts.must(200, "GET", "/admin/v1/runs/"+run.ID+"/dashboard", adminToken, nil).json(t, &d)
+	if !d.Listing.Listed || d.Listing.City != "Нови-Сад" {
+		t.Fatalf("витрина: %+v", d.Listing)
+	}
+}

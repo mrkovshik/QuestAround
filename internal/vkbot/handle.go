@@ -103,6 +103,14 @@ func (b *Bot) handle(ctx context.Context, m Message) {
 	case cmdGames:
 		b.gamesList(ctx, user)
 		return
+	case cmdCity:
+		b.setCity(user, p.City)
+		b.gamesList(ctx, user)
+		return
+	case cmdCityReset:
+		b.setCity(user, "")
+		b.gamesList(ctx, user)
+		return
 	case cmdGame:
 		b.gameCardByID(ctx, user, p.Run)
 		return

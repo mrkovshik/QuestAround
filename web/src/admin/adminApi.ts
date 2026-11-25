@@ -90,6 +90,8 @@ export interface Dashboard {
   run_status: 'pending' | 'running' | 'finished'
   levels_total: number
   registration: { open: boolean; max_teams: number }
+  /** Витрина: город и видимость в «Доступных играх» VK-бота. */
+  listing: { city: string; listed: boolean }
   leaderboard: { visibility: string; override: boolean | null; frozen: boolean }
   pending_moderation: number
   scoring_rule: string
@@ -202,6 +204,8 @@ export class AdminApi {
   approveResults = (run: string, message: string) => this.req<Dashboard>('POST', `/runs/${run}/results`, { message })
   setRegistration = (run: string, open: boolean, max_teams: number) =>
     this.req<Dashboard>('PUT', `/runs/${run}/registration`, { open, max_teams })
+  setListing = (run: string, city: string, listed: boolean) =>
+    this.req<Dashboard>('PUT', `/runs/${run}/listing`, { city, listed })
   createTeam = (run: string, name: string, contact: string) =>
     this.req<{ team_id: string; invite_code: string }>('POST', `/runs/${run}/teams`, { name, contact })
   renameTeam = (run: string, team: string, name: string) => this.req<Dashboard>('PATCH', `/runs/${run}/teams/${team}`, { name })

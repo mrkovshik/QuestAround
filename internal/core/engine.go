@@ -71,6 +71,8 @@ func (g *Game) Handle(now time.Time, cmd Command) (Outcome, error) {
 		err = g.withdrawTeam(t, c)
 	case SetRegistration:
 		err = g.setRegistration(t, c)
+	case SetListing:
+		err = g.setListing(t, c)
 	case StartRun:
 		err = g.startRun(t)
 	case StartTeam:

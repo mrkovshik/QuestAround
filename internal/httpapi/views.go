@@ -476,6 +476,10 @@ type dashboardDTO struct {
 		Open     bool `json:"open"`
 		MaxTeams int  `json:"max_teams"`
 	} `json:"registration"`
+	Listing struct {
+		City   string `json:"city"`
+		Listed bool   `json:"listed"`
+	} `json:"listing"`
 	Leaderboard struct {
 		Visibility string `json:"visibility"`
 		Override   *bool  `json:"override"`
@@ -521,6 +525,7 @@ func dashboardView(g *core.Game, now time.Time) dashboardDTO {
 	}
 	d.Registration.Open = !g.Registration.Closed
 	d.Registration.MaxTeams = g.Registration.MaxTeams
+	d.Listing.City, d.Listing.Listed = g.Listing.City, g.Listing.Listed
 	d.Leaderboard.Visibility = string(g.Scenario.Leaderboard.Visibility)
 	d.Leaderboard.Override = g.Leaderboard.Override
 	d.Leaderboard.Frozen = g.Leaderboard.Frozen
