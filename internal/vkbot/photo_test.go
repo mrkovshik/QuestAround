@@ -76,7 +76,8 @@ func (f *flakyUpload) UploadPhoto(ctx context.Context, peer int64, name string, 
 
 type pngMedia struct{ data []byte }
 
-func (m pngMedia) AssetKey(string) (string, bool) { return "assets/x.png", true }
+func (m pngMedia) AssetKey(string) (string, bool)                          { return "assets/x.png", true }
+func (m pngMedia) Save(context.Context, string, io.Reader) (string, error) { return "", nil }
 func (m pngMedia) Open(context.Context, string) (io.ReadSeekCloser, string, error) {
 	return nopCloser{bytes.NewReader(m.data)}, "image/png", nil
 }

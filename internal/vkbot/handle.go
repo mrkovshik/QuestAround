@@ -23,6 +23,9 @@ type mode struct {
 	until  time.Time
 	runID  string // для регистрации: выбранная игра
 	teamID string // и команда
+
+	mediaKey string // фото ждёт выбора, к чему оно (modePhoto)
+	msgID    int64
 }
 
 const (
@@ -196,6 +199,9 @@ func (b *Bot) handle(ctx context.Context, m Message) {
 	case cmdTeam:
 		b.teamCard(ctx, user, s)
 		return
+	case cmdPhotoTo:
+		b.photoChosen(ctx, user, s, p)
+		return
 	}
 
 	switch b.getMode(user) {
@@ -207,26 +213,18 @@ func (b *Bot) handle(ctx context.Context, m Message) {
 		return
 	}
 
+	url, photos := firstImage(m)
 	switch {
 	case m.Geo != nil:
 		c := m.Geo.Coordinates
 		b.answer(ctx, user, s, m, core.SubmitAnswer{Kind: core.KindGeo, Lat: c.Latitude, Lng: c.Longitude})
+	case url != "": // фото раньше текста: подпись к фото — не код
+		b.handlePhoto(ctx, user, s, m, url, photos)
 	case text != "":
 		b.answer(ctx, user, s, m, core.SubmitAnswer{Kind: core.KindCode, Value: text})
-	case hasPhoto(m):
-		b.reply(ctx, user, "📷 Фото через VK пока не принимаются. Отправьте его в приложении, когда появится связь, или покажите ведущему — он засчитает вручную.")
 	default:
 		b.reply(ctx, user, "Пришлите ответ текстом или местоположение. Кнопки — внизу, «📋 Задание» покажет текущее задание.")
 	}
-}
-
-func hasPhoto(m Message) bool {
-	for _, a := range m.Attaches {
-		if a.Type == "photo" {
-			return true
-		}
-	}
-	return false
 }
 
 // --- вход в игру ---

@@ -30,6 +30,8 @@ type API interface {
 	UploadPhoto(ctx context.Context, peerID int64, filename string, r io.Reader) (string, error)
 	// UserName — имя и фамилия пользователя.
 	UserName(ctx context.Context, userID int64) (first, last string, err error)
+	// Download скачивает вложение сообщения (фото игрока) с серверов VK.
+	Download(ctx context.Context, url string) (io.ReadCloser, error)
 }
 
 type LongPoll struct {
@@ -54,15 +56,56 @@ type Update struct {
 }
 
 type Message struct {
-	ID       int64  `json:"id"`
-	FromID   int64  `json:"from_id"`
-	PeerID   int64  `json:"peer_id"`
-	Text     string `json:"text"`
-	Payload  string `json:"payload"`
-	Geo      *Geo   `json:"geo"`
-	Attaches []struct {
-		Type string `json:"type"`
-	} `json:"attachments"`
+	ID       int64        `json:"id"`
+	FromID   int64        `json:"from_id"`
+	PeerID   int64        `json:"peer_id"`
+	Text     string       `json:"text"`
+	Payload  string       `json:"payload"`
+	Geo      *Geo         `json:"geo"`
+	Attaches []Attachment `json:"attachments"`
+}
+
+// Attachment — вложение сообщения; бот читает фото и картинки-документы.
+type Attachment struct {
+	Type  string `json:"type"`
+	Photo *struct {
+		Sizes []struct {
+			URL    string `json:"url"`
+			Width  int    `json:"width"`
+			Height int    `json:"height"`
+		} `json:"sizes"`
+		Orig *struct {
+			URL string `json:"url"`
+		} `json:"orig_photo"`
+	} `json:"photo,omitempty"`
+	Doc *struct {
+		URL  string `json:"url"`
+		Ext  string `json:"ext"`
+		Size int64  `json:"size"`
+	} `json:"doc,omitempty"`
+}
+
+// imageURL — ссылка на картинку во вложении (фото — в наибольшем размере).
+func (a Attachment) imageURL() string {
+	switch {
+	case a.Type == "photo" && a.Photo != nil:
+		if a.Photo.Orig != nil && a.Photo.Orig.URL != "" {
+			return a.Photo.Orig.URL
+		}
+		best, area := "", -1
+		for _, sz := range a.Photo.Sizes {
+			if sz.Width*sz.Height > area && sz.URL != "" {
+				best, area = sz.URL, sz.Width*sz.Height
+			}
+		}
+		return best
+	case a.Type == "doc" && a.Doc != nil:
+		switch strings.ToLower(a.Doc.Ext) {
+		case "jpg", "jpeg", "png", "webp", "gif":
+			return a.Doc.URL
+		}
+	}
+	return ""
 }
 
 type Geo struct {
@@ -354,6 +397,7 @@ type payload struct {
 	Idx   int    `json:"idx,omitempty"`
 	Run   string `json:"run,omitempty"`
 	Team  string `json:"team,omitempty"`
+	Bonus string `json:"bonus,omitempty"`
 	// Command — стандартная кнопка «Начать» VK присылает {"command":"start"}.
 	Command string `json:"command,omitempty"`
 }
@@ -367,4 +411,45 @@ func parsePayload(s string) payload {
 		p.Cmd = cmdStart
 	}
 	return p
+}
+
+// maxDownload — предел размера фото игрока (как у загрузки из приложения).
+const maxDownload = 15 << 20
+
+func (c *Client) Download(ctx context.Context, rawURL string) (io.ReadCloser, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Scheme != "https" || !vkHost(u.Hostname()) {
+		return nil, fmt.Errorf("неожиданная ссылка на вложение: %q", rawURL)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.httpClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		res.Body.Close()
+		return nil, fmt.Errorf("скачивание вложения: HTTP %d", res.StatusCode)
+	}
+	if res.ContentLength > maxDownload {
+		res.Body.Close()
+		return nil, fmt.Errorf("вложение слишком большое: %d байт", res.ContentLength)
+	}
+	return struct {
+		io.Reader
+		io.Closer
+	}{io.LimitReader(res.Body, maxDownload+1), res.Body}, nil
+}
+
+// vkHost — серверы VK, откуда приходят вложения.
+func vkHost(h string) bool {
+	h = strings.ToLower(h)
+	for _, d := range []string{"userapi.com", "vk.com", "vk.ru", "vkuserphoto.ru", "vk-cdn.net", "mycdn.me", "vkuser.net"} {
+		if h == d || strings.HasSuffix(h, "."+d) {
+			return true
+		}
+	}
+	return false
 }

@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"log/slog"
 	"strings"
@@ -46,11 +48,19 @@ levels:
 
 // fakeAPI запоминает отправленное.
 type fakeAPI struct {
-	mu      sync.Mutex
-	sent    []Outgoing
-	uploads int
-	updates chan Update // для Run: очередь Long Poll
+	mu        sync.Mutex
+	sent      []Outgoing
+	uploads   int
+	updates   chan Update // для Run: очередь Long Poll
+	downloads []string
 }
+
+// tinyPNG — картинка 1×1.
+var tinyPNG = func() []byte {
+	var buf bytes.Buffer
+	_ = png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 1, 1)))
+	return buf.Bytes()
+}()
 
 func (f *fakeAPI) LongPollServer(context.Context) (LongPoll, error) { return LongPoll{TS: "1"}, nil }
 
@@ -83,6 +93,14 @@ func (f *fakeAPI) UploadPhoto(_ context.Context, peer int64, _ string, r io.Read
 	return fmt.Sprintf("photo-1_%d", f.uploads), nil
 }
 
+// Download отдаёт PNG по ссылке VK; downloads — запрошенные ссылки.
+func (f *fakeAPI) Download(_ context.Context, url string) (io.ReadCloser, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.downloads = append(f.downloads, url)
+	return io.NopCloser(bytes.NewReader(tinyPNG)), nil
+}
+
 func (f *fakeAPI) UserName(_ context.Context, id int64) (string, string, error) {
 	return "Игрок", fmt.Sprintf("Номер%d", id), nil
 }
@@ -103,16 +121,31 @@ func (f *fakeAPI) take(peer int64) []Outgoing {
 	return mine
 }
 
-type fakeMedia struct{}
+type fakeMedia struct {
+	mu    sync.Mutex
+	saved []string
+}
 
-func (fakeMedia) AssetKey(name string) (string, bool) {
+func (m *fakeMedia) Save(_ context.Context, runID string, r io.Reader) (string, error) {
+	data, _ := io.ReadAll(r)
+	if !bytes.HasPrefix(data, []byte("\x89PNG")) {
+		return "", fmt.Errorf("не картинка")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := fmt.Sprintf("%s/photo%d.png", runID, len(m.saved)+1)
+	m.saved = append(m.saved, key)
+	return key, nil
+}
+
+func (*fakeMedia) AssetKey(name string) (string, bool) {
 	if name == "start.jpg" {
 		return "assets/abc.jpg", true
 	}
 	return "", false
 }
 
-func (fakeMedia) Open(_ context.Context, key string) (io.ReadSeekCloser, string, error) {
+func (*fakeMedia) Open(_ context.Context, key string) (io.ReadSeekCloser, string, error) {
 	return nopCloser{bytes.NewReader([]byte("img:" + key))}, "image/jpeg", nil
 }
 
@@ -131,13 +164,15 @@ type harness struct {
 	msgID int64
 }
 
-func newHarness(t *testing.T) *harness {
+func newHarness(t *testing.T) *harness { return newHarnessYAML(t, testYAML) }
+
+func newHarnessYAML(t *testing.T, yaml string) *harness {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	st := store.NewMemory()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	sv, err := st.SaveScenarioVersion(ctx, store.DefaultOrg, "vk", testYAML)
+	sv, err := st.SaveScenarioVersion(ctx, store.DefaultOrg, "vk", yaml)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +189,7 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	api := &fakeAPI{}
-	bot := New(Config{API: api, Store: st, VK: st, Runners: mgr, Media: fakeMedia{}, Logger: log, Location: time.UTC})
+	bot := New(Config{API: api, Store: st, VK: st, Runners: mgr, Media: &fakeMedia{}, Logger: log, Location: time.UTC})
 	return &harness{t: t, ctx: ctx, api: api, st: st, bot: bot, run: run, rn: rn}
 }
 

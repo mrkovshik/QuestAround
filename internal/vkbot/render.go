@@ -202,7 +202,7 @@ func (b *Bot) levelMessage(g *core.Game, t *core.Team, sl *scenario.Level, ls *c
 		sb.WriteString("\n\n📍 Ответ — место: на точке нажмите «Отправить местоположение» (или скрепка → Место).")
 	}
 	if kinds["photo"] {
-		sb.WriteString("\n\n📷 Ответ — фото: через VK пока не принимается. Отправьте в приложении, когда будет связь, или покажите ведущему.")
+		sb.WriteString("\n\n📷 Ответ — фото: пришлите его сюда сообщением, ведущий проверит.")
 	}
 	if kinds["text"] {
 		sb.WriteString("\n\n📝 Ответ — свободный текст: капитан отправляет его через «Ведущему».")
@@ -257,8 +257,10 @@ func (b *Bot) levelMessage(g *core.Game, t *core.Team, sl *scenario.Level, ls *c
 			line += " — засчитан ✓"
 		case t.PendingBonus[bn.ID] != 0:
 			line += " — на проверке"
+		case bn.Answer.Type == scenario.AnswerPhoto:
+			line += " — пришлите фото сообщением"
 		case bn.Answer.Type.NeedsModeration():
-			line += " — ответ через приложение или ведущего"
+			line += " — капитан отправляет ответ через «Ведущему»"
 		case bn.Answer.Type == scenario.AnswerGeo:
 			line += " — отправьте местоположение на точке"
 		default:

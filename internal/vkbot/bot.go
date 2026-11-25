@@ -36,6 +36,8 @@ import (
 type Media interface {
 	AssetKey(name string) (string, bool)
 	Open(ctx context.Context, key string) (io.ReadSeekCloser, string, error)
+	// Save сохраняет фото игрока; не картинка — ошибка.
+	Save(ctx context.Context, runID string, r io.Reader) (string, error)
 }
 
 type Config struct {
